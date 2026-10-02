@@ -3,85 +3,495 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>VizAgent</title>
+  <title>ViZ Agent</title>
   <style>
-    :root { --bg: #0f1420; --card: #182030; --text: #e8ecf3; --muted: #93a0b5; --accent: #4da3ff; }
+    :root {
+      --bg: #0f1420; --card: #182030; --line: #2c3850; --text: #e8ecf3; --muted: #93a0b5;
+      --accent: #4da3ff; --good: #3ecf8e; --warn: #f5b942; --bad: #ff6b6b; --off: #6b7890;
+    }
     * { box-sizing: border-box; }
-    body { margin: 0; font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); }
-    main { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
-    h1 { margin: 0 0 4px; } .sub { color: var(--muted); margin: 0 0 20px; }
-    form { display: flex; gap: 8px; flex-wrap: wrap; }
-    input { flex: 1 1 320px; padding: 10px 12px; border-radius: 8px; border: 1px solid #2c3850; background: var(--card); color: var(--text); }
-    button { padding: 10px 16px; border-radius: 8px; border: 0; background: var(--accent); color: #fff; cursor: pointer; }
-    button.alt { background: #2c3850; }
-    #status { color: var(--muted); margin: 12px 0; min-height: 1.2em; }
-    #answer { white-space: pre-wrap; background: var(--card); padding: 12px; border-radius: 8px; display: none; }
-    #results { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; margin-top: 12px; }
-    .card { background: var(--card); border-radius: 8px; padding: 10px; }
-    .card video { width: 100%; border-radius: 6px; background: #000; }
-    .meta { color: var(--muted); font-size: 12px; margin: 6px 0; }
-    .desc { font-size: 14px; max-height: 8em; overflow: auto; }
-    .sev { font-weight: 600; }
+    body { margin: 0; font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.45; }
+    main { max-width: 1180px; margin: 0 auto; padding: 24px 16px 60px; }
+    h1 { margin: 0 0 4px; font-size: 26px; }
+    h2 { margin: 28px 0 10px; font-size: 18px; }
+    .sub { color: var(--muted); margin: 0 0 12px; max-width: 70ch; }
+    .muted { color: var(--muted); }
+    button { padding: 9px 14px; border-radius: 8px; border: 0; background: var(--accent); color: #06121f; font-weight: 600; cursor: pointer; }
+    button.alt { background: var(--line); color: var(--text); font-weight: 500; }
+    button.small { padding: 5px 10px; font-size: 13px; }
+    button:disabled { opacity: .5; cursor: default; }
+    button[aria-pressed="true"] { outline: 2px solid var(--accent); }
+    input { padding: 9px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--text); }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .chip { display: inline-block; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line); font-size: 12px; color: var(--muted); white-space: nowrap; }
+    .chip.good { border-color: var(--good); color: var(--good); }
+    .chip.warn { border-color: var(--warn); color: var(--warn); }
+    .chip.bad { border-color: var(--bad); color: var(--bad); }
+    #status { color: var(--muted); }
+    #status.bad { color: var(--bad); }
+    #steps { margin: 10px 0 0; padding-left: 22px; color: var(--muted); font-size: 14px; }
+    .funnel { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+    .stat { background: var(--card); border-radius: 10px; padding: 12px 14px; border-left: 4px solid var(--off); }
+    .stat b { display: block; font-size: 30px; line-height: 1.1; }
+    .stat.good { border-color: var(--good); } .stat.warn { border-color: var(--warn); } .stat.bad { border-color: var(--bad); }
+    table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 10px; overflow: hidden; }
+    th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 14px; }
+    th { color: var(--muted); font-weight: 500; }
+    tr:last-child td { border-bottom: 0; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 12px; }
+    .card { background: var(--card); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .card video { width: 100%; border-radius: 6px; background: #000; aspect-ratio: 16 / 9; }
+    .card h3 { margin: 0; font-size: 15px; }
+    .card .meta { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+    .card details { font-size: 13px; color: var(--muted); }
+    .card details p { margin: 6px 0 0; white-space: pre-wrap; }
+    .context { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .panel { background: var(--card); border-radius: 10px; padding: 14px; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #0b101a; padding: 12px; border-radius: 8px; font-size: 13px; margin: 8px 0; }
+    details > summary { cursor: pointer; }
+    a { color: var(--accent); }
+    [hidden] { display: none !important; }
   </style>
 </head>
 <body>
 <main>
-  <h1>VizAgent</h1>
-  <p class="sub">Search the video archive, ask questions, or triage events.</p>
-  <form id="f">
-    <input id="q" placeholder="e.g. person close to a moving vehicle" required>
-    <button data-mode="search">Search</button>
-    <button data-mode="ask" class="alt">Ask</button>
-    <button data-mode="triage" class="alt">Triage</button>
-  </form>
-  <div id="status"></div>
-  <div id="answer"></div>
-  <div id="results"></div>
+  <h1>ViZ Agent</h1>
+  <p class="sub">A Vision Zero conflict finder. It sweeps street and dashcam video for pedestrian–vehicle conflicts,
+    double-checks every clip against a saved Cosmos verdict and the object detector, ranks where they happen,
+    and drafts the work order.</p>
+  <div id="chips" class="row"></div>
+
+  <h2>1. Sweep</h2>
+  <div class="row">
+    <button id="run">Run sweep</button>
+    <button id="watch" class="alt" hidden>Watch for new clips: off</button>
+    <span id="status"></span>
+  </div>
+  <ol id="steps"></ol>
+
+  <section id="alerts-section" hidden>
+    <h2>New clips flagged while watching <span id="alert-count" class="chip bad"></span></h2>
+    <div id="alerts" class="grid"></div>
+  </section>
+
+  <section id="results" hidden>
+    <h2>2. What the checks kept and dropped</h2>
+    <div id="funnel" class="funnel"></div>
+    <p id="sweep-note" class="muted"></p>
+
+    <section id="compare-section" hidden>
+      <h2>Before and after our re-ingest prompt</h2>
+      <div id="compare"></div>
+    </section>
+
+    <h2>3. Where to act first</h2>
+    <div id="hotspots"></div>
+
+    <section id="workorder-section" hidden>
+      <h2>Drafted work order</h2>
+      <div id="workorder" class="panel"></div>
+    </section>
+
+    <h2>4. Evidence: review each clip</h2>
+    <div class="row">
+      <span id="review-score" class="muted"></span>
+      <button id="publish" class="alt small" hidden>Save review to W&amp;B</button>
+      <span id="publish-result" class="muted"></span>
+    </div>
+    <div id="conflicts" class="grid" style="margin-top:10px"></div>
+
+    <details id="rejected-section" style="margin-top:22px">
+      <summary id="rejected-summary">False alarms filtered</summary>
+      <div id="rejected" class="grid" style="margin-top:10px"></div>
+    </details>
+  </section>
+
+  <details style="margin-top:28px">
+    <summary>Plain search, with no checks (for comparison)</summary>
+    <form id="plain-form" class="row" style="margin-top:10px">
+      <input id="plain-query" style="flex:1 1 320px" value="pedestrian crossing in front of the car" required>
+      <input id="plain-camera" style="width:170px" value="pie_cam-3" aria-label="camera id filter (optional)">
+      <button class="alt">Search</button>
+      <span id="plain-score" class="muted"></span>
+    </form>
+    <div id="plain" class="grid" style="margin-top:10px"></div>
+  </details>
 </main>
 <script>
-  // Served behind Ingress at /app: build API URLs from the page path so they stay under /app.
+  // Served behind Ingress at /app: build every URL from the page path so it stays under /app.
   const BASE = location.pathname.endsWith('/') ? location.pathname : location.pathname + '/';
   const $ = (id) => document.getElementById(id);
-  let mode = 'search';
-  document.querySelectorAll('button[data-mode]').forEach(b => b.onclick = () => { mode = b.dataset.mode; });
+  const VERDICTS = { A: 'near-miss or contact', B: 'conflict', C: 'normal yielding', D: 'no interaction' };
+  const SEVERITY = ['none', 'low', 'medium', 'high'];
+  const state = { features: {}, sweep: null, labels: load('viz-labels'), plainLabels: load('viz-plain-labels'), cursor: 0, watching: false, timer: null };
 
-  function card(hit) {
-    const el = document.createElement('div');
-    el.className = 'card';
-    const v = hit.verdict || {};
-    const sev = v.severity ? `<div class="sev">Severity ${v.severity}/5 — ${v.reason || ''}</div>` : '';
-    el.innerHTML = `
-      <video controls preload="none" src="${BASE}api/stream?source=${encodeURIComponent(hit.source || hit.preview_source || '')}"></video>
-      ${sev}
-      <div class="meta">score ${(hit.similarity_score ?? 0).toFixed(3)}</div>
-      <div class="desc"></div>`;
-    el.querySelector('.desc').textContent = hit.reasoning_content || '';
-    el.querySelector('.meta').textContent += ' · ' + (hit.source || '').split('/').pop();
-    return el;
+  function load(key) { try { return JSON.parse(localStorage.getItem(key)) || {}; } catch (_) { return {}; } }
+  function save(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) { /* private mode */ } }
+
+  function el(tag, props, ...children) {
+    const node = document.createElement(tag);
+    for (const [key, value] of Object.entries(props || {})) {
+      if (value == null || value === false) continue;
+      if (key === 'class') node.className = value;
+      else if (key === 'text') node.textContent = value;
+      else if (key.startsWith('on')) node.addEventListener(key.slice(2), value);
+      else node.setAttribute(key, value === true ? '' : value);
+    }
+    for (const child of children.flat()) {
+      if (child == null || child === false) continue;
+      node.append(child.nodeType ? child : document.createTextNode(String(child)));
+    }
+    return node;
   }
 
-  $('f').onsubmit = async (e) => {
-    e.preventDefault();
-    const q = $('q').value.trim();
-    $('status').textContent = 'Working…';
-    $('answer').style.display = 'none';
-    $('results').innerHTML = '';
-    const body = mode === 'ask' ? { question: q } : { query: q };
-    try {
-      const r = await fetch(`${BASE}api/${mode}`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
-      });
-      const data = await r.json();
-      if (!r.ok) throw new Error(data.detail || r.statusText);
-      const answer = data.answer || data.llm_synthesis?.response;
-      if (answer) { $('answer').textContent = answer; $('answer').style.display = 'block'; }
-      const hits = data.results || data.evidence?.chunks || [];
-      hits.forEach(h => $('results').appendChild(card(h)));
-      $('status').textContent = `${hits.length} result(s)`;
-    } catch (err) {
-      $('status').textContent = 'Error: ' + err.message;
+  async function call(path, body) {
+    const options = body === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
+    const response = await fetch(BASE + path, options);
+    let data = null;
+    try { data = await response.json(); } catch (_) { /* not JSON */ }
+    if (!response.ok) {
+      const detail = data && data.detail;
+      throw new Error(typeof detail === 'string' ? detail : detail ? JSON.stringify(detail) : 'HTTP ' + response.status);
     }
-  };
+    return data;
+  }
+
+  function setStatus(text, bad) { $('status').textContent = text; $('status').className = bad ? 'bad' : ''; }
+  const clipUrl = (source) => BASE + 'api/stream?source=' + encodeURIComponent(source || '');
+  const fileName = (uri) => String(uri || '').split('/').pop();
+  function clock(seconds) {
+    if (typeof seconds !== 'number') return null;
+    return Math.floor(seconds / 60) + ':' + String(Math.floor(seconds % 60)).padStart(2, '0');
+  }
+
+  // ---- clip cards ----
+
+  function thumbs(id, store, storeKey, onChange) {
+    const make = (value, text) => el('button', {
+      class: 'alt small', 'aria-pressed': String(store[id] === value), text,
+      onclick: () => {
+        if (store[id] === value) delete store[id]; else store[id] = value;
+        save(storeKey, store);
+        onChange();
+      },
+    });
+    return [make(true, '👍 Correct'), make(false, '👎 Wrong')];
+  }
+
+  function signalChips(conflict) {
+    const signals = conflict.signals || {};
+    const stored = signals.stored || {}, yolo = signals.yolo || {}, cosmos = signals.cosmos;
+    const chips = [];
+    if (stored.letter) {
+      chips.push(el('span', { class: 'chip ' + ('AB'.includes(stored.letter) ? 'good' : ''), text: `Cosmos at ingest: ${stored.letter} (${VERDICTS[stored.letter]})` }));
+    } else {
+      chips.push(el('span', { class: 'chip', text: 'Cosmos at ingest: not re-ingested' }));
+    }
+    if (stored.cause) chips.push(el('span', { class: 'chip', text: 'cause: ' + String(stored.cause).replace(/_/g, ' ') }));
+    const mark = yolo.ok === true ? '✓' : yolo.ok === false ? '✗' : '–';
+    const close = typeof yolo.closeness === 'number' ? ` · closeness ${yolo.closeness}` : '';
+    chips.push(el('span', { class: 'chip ' + (yolo.ok === true ? 'good' : yolo.ok === false ? 'bad' : ''), text: `Detector ${mark} ${yolo.note || ''}${close}` }));
+    if (cosmos && cosmos.letter) {
+      chips.push(el('span', { class: 'chip ' + ('AB'.includes(cosmos.letter) ? 'good' : 'bad'), text: `Second look: ${cosmos.letter} (${VERDICTS[cosmos.letter]})` }));
+    }
+    return chips;
+  }
+
+  function card(conflict, options) {
+    const opts = options || {};
+    const status = conflict.status;
+    const statusChip = el('span', {
+      class: 'chip ' + (status === 'verified' ? 'good' : status === 'rejected' ? 'bad' : 'warn'),
+      text: status === 'verified' ? 'verified' : status === 'rejected' ? 'filtered out' : 'needs review',
+    });
+    const where = [
+      conflict.camera_id, conflict.location && String(conflict.location).replace(/_/g, ' '),
+      conflict.original_video && fileName(conflict.original_video),
+      clock(conflict.start_sec) && '@ ' + clock(conflict.start_sec), 'match ' + conflict.similarity,
+    ].filter(Boolean).join(' · ');
+    const extra = el('div', {});
+    const cosmos = (conflict.signals || {}).cosmos;
+    const actions = [];
+    if (!opts.readOnly) actions.push(...thumbs(conflict.id, state.labels, 'viz-labels', () => render(state.sweep)));
+    if (state.features.cosmos && !opts.readOnly) {
+      actions.push(el('button', { class: 'alt small', text: 'Second look', onclick: (event) => secondLook(conflict, event.target) }));
+    }
+    if (state.features.context) {
+      actions.push(el('button', { class: 'alt small', text: 'Before / after', onclick: (event) => showContext(conflict, extra, event.target) }));
+    }
+    return el('div', { class: 'card', id: opts.readOnly ? null : 'c-' + conflict.id },
+      el('div', { class: 'row' },
+        el('h3', { text: (conflict.type || {}).label || 'Conflict' }), statusChip,
+        status !== 'rejected' && el('span', { class: 'chip', text: `severity ${conflict.severity}/3 (${SEVERITY[conflict.severity] || '?'})` })),
+      el('video', { controls: true, preload: 'none', src: clipUrl(conflict.source) }),
+      el('div', { class: 'meta', text: where }),
+      el('div', { class: 'row' }, signalChips(conflict)),
+      el('div', { text: conflict.reason || '' }),
+      conflict.reject_reason && el('div', { class: 'chip bad', style: 'white-space:normal', text: 'Dropped: ' + conflict.reject_reason }),
+      el('details', {}, el('summary', { text: 'Description written by Cosmos Reason' }), el('p', { text: conflict.caption || '(none)' })),
+      cosmos && cosmos.trace && el('details', {}, el('summary', { text: 'Second-look reasoning' }), el('p', { text: cosmos.trace })),
+      el('div', { class: 'row' }, actions),
+      extra);
+  }
+
+  async function secondLook(conflict, button) {
+    button.disabled = true; button.textContent = 'Cosmos is watching the clip…';
+    try {
+      const result = await call('api/second-look', { conflict_id: conflict.id });
+      let fresh = null;
+      try { const job = await call('api/sweep/latest'); if (job.status === 'done') fresh = job.result; } catch (_) { /* no live job */ }
+      if (fresh && fresh.conflicts.some((c) => c.id === conflict.id)) render(fresh);
+      else { Object.assign(conflict, result.conflict || {}); render(state.sweep); }
+      setStatus(`Second look on that clip: ${result.letter || 'no letter'} (${VERDICTS[result.letter] || 'unclear'}); it ${result.agrees ? 'agrees with' : 'overturned'} the earlier checks.`);
+    } catch (err) {
+      button.disabled = false; button.textContent = 'Second look';
+      setStatus('Second look failed: ' + err.message, true);
+    }
+  }
+
+  async function showContext(conflict, target, button) {
+    button.disabled = true;
+    try {
+      const around = await call('api/context?conflict_id=' + encodeURIComponent(conflict.id));
+      const clip = (label, item) => item
+        ? el('div', {}, el('div', { class: 'meta', text: label }), el('video', { controls: true, preload: 'none', src: clipUrl(item.source) }))
+        : el('div', { class: 'meta', text: label + ': not in the index' });
+      target.replaceChildren(el('div', { class: 'context' }, clip('Clip before', around.prev), clip('Clip after', around.next)));
+    } catch (err) {
+      target.replaceChildren(el('div', { class: 'meta', text: 'Could not load the clips around this one: ' + err.message }));
+      button.disabled = false;
+    }
+  }
+
+  // ---- sweep results ----
+
+  function stat(kind, number, label) { return el('div', { class: 'stat ' + kind }, el('b', { text: number }), label); }
+
+  function render(sweep) {
+    if (!sweep) return;
+    state.sweep = sweep;
+    const funnel = sweep.funnel || {};
+    const conflicts = sweep.conflicts || [];
+    $('results').hidden = false;
+    $('funnel').replaceChildren(
+      stat('', funnel.candidates ?? conflicts.length, 'clips found by search'),
+      stat('good', funnel.verified ?? 0, 'verified conflicts'),
+      stat('bad', funnel.rejected ?? 0, 'false alarms filtered out'),
+      stat('warn', funnel.unverified ?? 0, 'need a human look'));
+    $('sweep-note').textContent = `Cameras: ${(sweep.cameras || []).join(', ') || 'none'} · run ${sweep.generated_at || ''}` + (sweep.mode === 'fixture' ? ' · sample data, not live' : '');
+
+    const typeLabel = {};
+    conflicts.forEach((c) => { if (c.type) typeLabel[c.type.key] = c.type.label; });
+    const hotspots = sweep.hotspots || [];
+    $('hotspots').replaceChildren(hotspots.length
+      ? el('table', {},
+          el('thead', {}, el('tr', {}, ['#', 'Location', 'Risk score', 'Verified', 'What happens there', ''].map((h) => el('th', { text: h })))),
+          el('tbody', {}, hotspots.map((spot, i) => el('tr', {},
+            el('td', { text: i + 1 }),
+            el('td', {}, spot.label, el('div', { class: 'meta muted', text: spot.kind === 'camera' ? 'fixed street camera' : 'dashcam drive' })),
+            el('td', { text: spot.score }),
+            el('td', { text: spot.verified }),
+            el('td', {}, el('div', { class: 'row' }, Object.entries(spot.by_type || {}).map(([key, n]) => el('span', { class: 'chip', text: `${typeLabel[key] || key} ×${n}` })))),
+            el('td', {}, el('button', { class: 'small', text: 'Draft work order', onclick: (event) => draftOrder(spot, event.target) }))))))
+      : el('p', { class: 'muted', text: 'No verified conflicts yet, so there is nothing to rank.' }));
+
+    const kept = conflicts.filter((c) => c.status !== 'rejected');
+    const dropped = conflicts.filter((c) => c.status === 'rejected');
+    $('conflicts').replaceChildren(...(kept.length ? kept.map((c) => card(c)) : [el('p', { class: 'muted', text: 'Nothing passed the checks.' })]));
+    $('rejected').replaceChildren(...dropped.map((c) => card(c)));
+    $('rejected-summary').textContent = `False alarms filtered out (${dropped.length}): what the checks dropped, and why`;
+
+    const judged = conflicts.filter((c) => c.status === 'verified' && c.id in state.labels);
+    const right = judged.filter((c) => state.labels[c.id]).length;
+    $('review-score').textContent = judged.length
+      ? `Your review: ${right} of ${judged.length} verified clips confirmed (${Math.round(100 * right / judged.length)}%)`
+      : 'Mark clips 👍 or 👎. Only approved clips go into a work order, and the score shows here.';
+    $('publish').hidden = !state.features.publish;
+  }
+
+  async function draftOrder(spot, button) {
+    const ids = spot.conflict_ids || [];
+    let chosen = ids.filter((id) => state.labels[id] === true), note = `${chosen.length} clip(s) you approved`;
+    if (!chosen.length) {
+      chosen = ids.filter((id) => state.labels[id] !== false);
+      note = 'no clips approved yet, so every verified clip here is used';
+    }
+    if (!chosen.length) { setStatus('Every clip at this location was marked wrong, so there is nothing to file.', true); return; }
+    button.disabled = true;
+    try {
+      const order = await call('api/workorder', { conflict_ids: chosen });
+      renderOrder(order, spot, note);
+    } catch (err) { setStatus('Work order failed: ' + err.message, true); }
+    button.disabled = false;
+  }
+
+  function renderOrder(order, spot, note) {
+    const open311 = order.open311 || {}, attribute = open311.attribute || {};
+    const line = (label, value) => value && el('tr', {}, el('th', { text: label }), el('td', { text: value }));
+    const approve = el('button', { text: 'Approve draft', onclick: () => { approve.disabled = true; approve.textContent = 'Approved (not sent anywhere)'; } });
+    $('workorder').replaceChildren(
+      el('div', { class: 'row' }, el('h3', { style: 'margin:0', text: order.id }), el('span', { class: 'chip warn', text: order.status || 'DRAFT' }),
+        el('span', { class: 'muted', text: `for ${spot.label}; ${note}` })),
+      el('table', { style: 'margin:10px 0' }, el('tbody', {},
+        line('Location', open311.address_string), line('Priority', attribute.priority),
+        line('Physical cause', order.cause && String(order.cause).replace(/_/g, ' ')),
+        line('Recommended fix', [order.countermeasure, attribute.countermeasure_source && `(${attribute.countermeasure_source})`].filter(Boolean).join(' ')),
+        line('Expected effect', order.expected_effect),
+        line('Alternatives', (attribute.alternatives || []).join('; ')))),
+      el('pre', { text: order.markdown || '' }),
+      el('div', { class: 'row' }, approve,
+        el('button', { class: 'alt', text: 'Copy brief', onclick: (event) => copyText(order.markdown || '', event.target) })),
+      el('details', {}, el('summary', { text: 'Open311 service request (JSON)' }), el('pre', { text: JSON.stringify(open311, null, 2) })));
+    $('workorder-section').hidden = false;
+    $('workorder-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function copyText(text, button) {
+    const area = el('textarea', { style: 'position:fixed;opacity:0' });
+    area.value = text; document.body.append(area); area.select();
+    let done = false;
+    try { done = document.execCommand('copy'); } catch (_) { /* fall through */ }
+    area.remove();
+    button.textContent = done ? 'Copied' : 'Select the text above to copy';
+  }
+
+  function renderSteps(steps) {
+    $('steps').replaceChildren(...steps.map((step) => el('li', { text: `${step.text} (${step.t}s)` })));
+  }
+
+  async function follow(jobId) {
+    for (;;) {
+      const job = await call('api/sweep/' + jobId);
+      renderSteps(job.steps || []);
+      if (job.status === 'done') { setStatus('Sweep finished.'); render(job.result); loadCompare(); return; }
+      if (job.status === 'error') throw new Error(job.error || 'the sweep failed');
+      setStatus('Sweeping…');
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
+  }
+
+  async function runSweep() {
+    $('run').disabled = true; $('steps').replaceChildren(); setStatus('Starting…');
+    try { const started = await call('api/sweep', {}); await follow(started.job_id); }
+    catch (err) { setStatus('Sweep failed: ' + err.message, true); }
+    $('run').disabled = false;
+  }
+
+  async function loadCompare() {
+    const [before, after] = await Promise.all(['before', 'after'].map((name) => call('api/snapshot/' + name).catch(() => null)));
+    if (!before || !after) { $('compare-section').hidden = true; return; }
+    const rows = [['Clips found by search', 'candidates'], ['Verified conflicts', 'verified'], ['False alarms filtered out', 'rejected'], ['Need a human look', 'unverified']];
+    const withVerdict = (sweep) => (sweep.conflicts || []).filter((c) => ((c.signals || {}).stored || {}).letter).length;
+    $('compare').replaceChildren(el('table', {},
+      el('thead', {}, el('tr', {}, ['', 'Original descriptions', 'After our prompt'].map((h) => el('th', { text: h })))),
+      el('tbody', {},
+        rows.map(([label, key]) => el('tr', {}, el('td', { text: label }), el('td', { text: (before.funnel || {})[key] ?? '–' }), el('td', { text: (after.funnel || {})[key] ?? '–' }))),
+        el('tr', {}, el('td', { text: 'Clips carrying a Cosmos verdict' }), el('td', { text: withVerdict(before) }), el('td', { text: withVerdict(after) })))));
+    $('compare-section').hidden = false;
+  }
+
+  // ---- extras ----
+
+  async function publish() {
+    const conflicts = (state.sweep && state.sweep.conflicts) || [];
+    const ids = conflicts.filter((c) => c.id in state.labels).map((c) => c.id);
+    if (!ids.length) { $('publish-result').textContent = 'Review at least one clip first.'; return; }
+    $('publish').disabled = true;
+    try {
+      const labels = Object.fromEntries(ids.map((id) => [id, state.labels[id]]));
+      const out = await call('api/publish', { conflict_ids: ids, labels });
+      const links = [out.url && el('a', { href: out.url, target: '_blank', rel: 'noopener', text: 'dataset' }),
+        out.eval_url && el('a', { href: out.eval_url, target: '_blank', rel: 'noopener', text: 'evaluation' })].filter(Boolean);
+      $('publish-result').replaceChildren(`Saved ${out.rows} reviewed clip(s)` + (out.precision != null ? `, precision ${Math.round(out.precision * 100)}%` : '') + (links.length ? ': ' : '.'),
+        ...links.flatMap((link, i) => (i ? [' · ', link] : [link])));
+    } catch (err) { $('publish-result').textContent = 'Could not save: ' + err.message; }
+    $('publish').disabled = false;
+  }
+
+  async function pollAlerts() {
+    try {
+      const out = await call('api/alerts?since=' + state.cursor);
+      state.cursor = out.cursor ?? state.cursor;
+      (out.alerts || []).forEach((alert) => $('alerts').prepend(card(alert, { readOnly: true })));
+      const total = $('alerts').children.length;
+      $('alerts-section').hidden = total === 0;
+      $('alert-count').textContent = total;
+      setWatching(Boolean(out.on));
+    } catch (_) { /* keep polling */ }
+  }
+
+  function setWatching(on) {
+    state.watching = on;
+    $('watch').textContent = 'Watch for new clips: ' + (on ? 'on' : 'off');
+    $('watch').setAttribute('aria-pressed', String(on));
+    if (on && !state.timer) state.timer = setInterval(pollAlerts, 5000);
+    if (!on && state.timer) { clearInterval(state.timer); state.timer = null; }
+  }
+
+  async function toggleWatch() {
+    try { const out = await call('api/watch', { on: !state.watching }); setWatching(Boolean(out.on)); }
+    catch (err) { setStatus('Watch mode failed: ' + err.message, true); }
+  }
+
+  async function plainSearch(event) {
+    event.preventDefault();
+    const camera = $('plain-camera').value.trim();
+    const body = { query: $('plain-query').value.trim(), top_k: 10 };
+    if (camera) body.metadata_filters = { camera_id: camera };
+    $('plain').replaceChildren(el('p', { class: 'muted', text: 'Searching…' }));
+    try {
+      const found = await call('api/search', body);
+      const hits = found.results || [];
+      const score = () => {
+        const judged = hits.filter((h) => h.source in state.plainLabels);
+        const right = judged.filter((h) => state.plainLabels[h.source]).length;
+        $('plain-score').textContent = judged.length ? `Your review: ${right} of ${judged.length} are real conflicts` : `${hits.length} result(s), unchecked`;
+      };
+      const draw = () => {
+        $('plain').replaceChildren(...hits.map((hit) => el('div', { class: 'card' },
+          el('video', { controls: true, preload: 'none', src: clipUrl(hit.source) }),
+          el('div', { class: 'meta', text: `match ${Number(hit.similarity_score || 0).toFixed(3)} · ${fileName(hit.source)}` }),
+          el('div', { style: 'font-size:14px', text: String(hit.reasoning_content || '').slice(0, 400) }),
+          el('div', { class: 'row' }, thumbs(hit.source, state.plainLabels, 'viz-plain-labels', () => { draw(); })))));
+        score();
+      };
+      draw();
+    } catch (err) { $('plain').replaceChildren(el('p', { class: 'chip bad', text: 'Search failed: ' + err.message })); }
+  }
+
+  async function init() {
+    $('run').addEventListener('click', runSweep);
+    $('watch').addEventListener('click', toggleWatch);
+    $('publish').addEventListener('click', publish);
+    $('plain-form').addEventListener('submit', plainSearch);
+    try {
+      const health = await call('health');
+      state.features = health.features || {};
+      const chip = (ok, text) => el('span', { class: 'chip ' + (ok ? 'good' : 'warn'), text });
+      $('chips').replaceChildren(
+        chip(health.mode === 'live', health.mode === 'live' ? 'live data' : 'sample data'),
+        chip(health.vss_configured, health.vss_configured ? 'video index connected' : 'video index not connected'),
+        chip(health.llm_configured, health.llm_configured ? 'W&B inference on' : 'W&B inference off'),
+        chip(health.tracing, health.tracing ? 'Weave tracing on' : 'Weave tracing off'),
+        chip(state.features.cosmos, state.features.cosmos ? 'Cosmos second look on' : 'Cosmos second look off'));
+      $('watch').hidden = !state.features.watch;
+      if (state.features.watch) pollAlerts();
+    } catch (err) { setStatus('Could not reach the app: ' + err.message, true); }
+
+    try {  // show the most recent sweep, or the saved one, so the page is never empty
+      const job = await call('api/sweep/latest');
+      renderSteps(job.steps || []);
+      if (job.status === 'done') render(job.result);
+      else if (job.status === 'running') { $('run').disabled = true; follow(job.job_id).catch((err) => setStatus('Sweep failed: ' + err.message, true)).then(() => { $('run').disabled = false; }); }
+    } catch (_) {
+      const saved = await call('api/snapshot/after').catch(() => null);
+      if (saved) { render(saved); setStatus('Showing the saved sweep. Press Run sweep for a fresh one.'); }
+      else setStatus('Press Run sweep to start.');
+    }
+    loadCompare();
+  }
+
+  init();
 </script>
 </body>
 </html>
