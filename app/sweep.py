@@ -19,6 +19,7 @@ from pathlib import Path
 
 import httpx
 
+import gpu
 import llm
 import taxonomy
 from vss import VSSClient, redact
@@ -43,6 +44,8 @@ client = VSSClient()
 _jobs = {}
 _conflicts = {}
 _latest = {"job_id": None}
+_watch = {"on": False, "seen": set(), "alerts": []}
+WATCH_SECONDS = 45
 _lock = threading.Lock()
 
 
@@ -565,6 +568,124 @@ def get_job(job_id):
         job_id = _latest["job_id"]
     job = _jobs.get(job_id)
     return None if job is None else {k: v for k, v in job.items() if not k.startswith("_")}
+
+
+# ---- extras: second look, publish, watch ----
+
+
+@llm.op
+def second_look_trace(source, conflict_type, letter, trace):
+    """Records the live Cosmos second look in the trace (the clip bytes are not logged)."""
+    return {"letter": letter, "trace": trace}
+
+
+def second_look(conflict_id):
+    """Send the actual clip back to Cosmos3-Reason with a direct question and re-decide."""
+    conflict = get_conflict(conflict_id)
+    if conflict is None:
+        return None
+    clip = client.segment_bytes(conflict["source"])
+    if clip is None:
+        raise RuntimeError("clip is missing or too large for a second look")
+    ctype = taxonomy.TYPE_BY_KEY.get(conflict["type"]["key"], {})
+    question = taxonomy.SECOND_LOOK_PROMPT.format(question=ctype.get("question", ""))
+    trace, letter = gpu.cosmos_verify(clip, question)
+    second_look_trace(conflict["source"], conflict["type"]["label"], letter, trace)
+    was = conflict["status"]
+    signals = conflict["signals"]
+    signals["cosmos"] = {"letter": letter, "trace": trace}
+    conflict["status"], conflict["reject_reason"] = decide(signals["stored"], signals["yolo"], signals["cosmos"])
+    if conflict["status"] == "rejected":
+        conflict["severity"] = 0
+    elif conflict["status"] == "verified":
+        conflict["severity"] = max(conflict["severity"], 3 if letter == "A" else 2)
+    return {
+        "letter": letter,
+        "trace": trace,
+        "agrees": letter is not None and (letter in ("A", "B")) == (was == "verified"),
+        "status": conflict["status"],
+        "conflict": conflict,
+    }
+
+
+def publish(conflict_ids, labels=None):
+    """Save reviewed conflicts to W&B Weave as a dataset. Returns {url, rows, precision}."""
+    import weave
+
+    labels = labels or {}
+    rows = [
+        {
+            "id": c["id"],
+            "source": c["source"],
+            "camera_id": c["camera_id"],
+            "conflict_type": c["type"]["key"],
+            "status": c["status"],
+            "severity": c["severity"],
+            "reason": c["reason"],
+            "stored_verdict": c["signals"]["stored"]["letter"],
+            "detector_ok": c["signals"]["yolo"]["ok"],
+            "caption": c["caption"],
+            "human_label": labels.get(c["id"]),
+        }
+        for c in map(get_conflict, conflict_ids)
+        if c
+    ]
+    if not rows:
+        return None
+    ref = weave.publish(weave.Dataset(name="viz-agent-conflicts", rows=rows))
+    judged = [r["human_label"] for r in rows if r["human_label"] is not None]
+    try:
+        url = f"https://wandb.ai/{ref.entity}/{ref.project}/weave/objects/{ref.name}/versions/{ref.digest}"
+    except AttributeError:
+        url = str(ref.uri()) if hasattr(ref, "uri") else str(ref)
+    return {
+        "url": url,
+        "rows": len(rows),
+        "precision": round(sum(judged) / len(judged), 2) if judged else None,
+    }
+
+
+def _watch_pass():
+    """Assess only clips not seen before; verified ones become alerts."""
+    fresh = [c for c in collect_candidates(discover_cameras(), 10) if c["id"] not in _watch["seen"]]
+    with llm.ThreadPoolExecutor(max_workers=8) as pool:
+        conflicts = list(pool.map(_assess, fresh))
+    _watch["seen"].update(c["id"] for c in conflicts)
+    remember({"conflicts": conflicts})
+    return [c for c in conflicts if c["status"] == "verified"]
+
+
+def _watch_loop():
+    first = not _watch["seen"]
+    while _watch["on"]:
+        try:
+            alerts = _watch_pass()
+            if not first:  # the first pass only learns what is already in the index
+                _watch["alerts"].extend(alerts)
+            first = False
+        except Exception as exc:
+            log.warning("watch pass failed: %s", redact(str(exc)))
+        for _ in range(WATCH_SECONDS):
+            if not _watch["on"]:
+                return
+            time.sleep(1)
+
+
+def set_watch(on):
+    """Turn the watcher on or off. While on, newly indexed clips are checked as they appear."""
+    with _lock:
+        if on and not _watch["on"]:
+            _watch["on"] = True
+            _watch["seen"].update(_conflicts)  # clips from earlier sweeps are not news
+            threading.Thread(target=_watch_loop, daemon=True).start()
+        elif not on:
+            _watch["on"] = False
+    return _watch["on"]
+
+
+def alerts_since(cursor):
+    alerts = _watch["alerts"]
+    return {"alerts": alerts[max(0, cursor) :], "cursor": len(alerts), "on": _watch["on"]}
 
 
 def main():

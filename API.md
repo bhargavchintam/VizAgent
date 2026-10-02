@@ -20,10 +20,10 @@ VIZ_MODE=fixture python app/main.py      # http://localhost:8080/
 | `GET /api/sweep/{job_id}` | | `Job`. `job_id` may be `latest` |
 | `GET /api/snapshot/{name}` | | `Sweep`. `name` is `before` or `after`; 404 if not saved |
 | `POST /api/workorder` | `{conflict_ids: [str]}` | `WorkOrder` |
-| `POST /api/second-look` | `{conflict_id}` | `{letter, trace, agrees}` (only if `features.cosmos`) |
-| `POST /api/publish` | `{conflict_ids: [str], labels?: {id: bool}}` | `{url, rows}` (only if `features.publish`) |
+| `POST /api/second-look` | `{conflict_id}` | `{letter, trace, agrees, status, conflict}`; `conflict` is the updated Conflict (only if `features.cosmos`) |
+| `POST /api/publish` | `{conflict_ids: [str], labels?: {id: bool}}` | `{url, rows, precision}`; `precision` is approved / labelled, or null (only if `features.publish`) |
 | `POST /api/watch` | `{on: bool}` | `{on}` (only if `features.watch`) |
-| `GET /api/alerts?since=N` | | `{alerts: [Conflict], cursor: N}` (only if `features.watch`) |
+| `GET /api/alerts?since=N` | | `{alerts: [Conflict], cursor: N, on}`; poll with the last `cursor` (only if `features.watch`) |
 | `POST /api/search`, `POST /api/ask` | unchanged | unchanged (plain search, for the before/after comparison) |
 | `GET /api/stream?source=` | | the clip, seekable. Use `conflict.source`, URL-encoded |
 

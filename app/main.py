@@ -17,6 +17,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 from starlette.background import BackgroundTask
 
+import gpu
 import llm
 import sweep
 import workorder
@@ -53,7 +54,8 @@ def _call(fn, *args, **kwargs):
 
 
 def features():
-    return {"cosmos": False, "publish": False, "watch": False}
+    live = not sweep.fixture_mode() and vss.configured
+    return {"cosmos": live and gpu.configured(), "publish": state["tracing"], "watch": live}
 
 
 class SearchBody(BaseModel):
@@ -80,6 +82,19 @@ class WorkOrderBody(BaseModel):
     conflict_ids: list[str]
 
 
+class SecondLookBody(BaseModel):
+    conflict_id: str
+
+
+class PublishBody(BaseModel):
+    conflict_ids: list[str]
+    labels: dict[str, bool] = {}
+
+
+class WatchBody(BaseModel):
+    on: bool
+
+
 @app.get("/")
 def index():
     return FileResponse(HERE / "index.html")
@@ -92,7 +107,7 @@ def health():
         "vss_configured": vss.configured,
         "llm_configured": llm.configured(),
         "tracing": state["tracing"],
-        "gpu_configured": False,
+        "gpu_configured": gpu.configured(),
         "mode": "fixture" if sweep.fixture_mode() else "live",
         "features": features(),
     }
@@ -130,6 +145,41 @@ def draft_work_order(body: WorkOrderBody):
     if not conflicts:
         raise HTTPException(404, "none of those conflicts are known; run a sweep first")
     return workorder.draft(conflicts)
+
+
+@app.post("/api/second-look")
+def second_look(body: SecondLookBody):
+    if not features()["cosmos"]:
+        raise HTTPException(503, "the Cosmos second look is not available here")
+    result = _call(sweep.second_look, body.conflict_id)
+    if result is None:
+        raise HTTPException(404, "no such conflict; run a sweep first")
+    return result
+
+
+@app.post("/api/publish")
+def publish(body: PublishBody):
+    if not features()["publish"]:
+        raise HTTPException(503, "W&B tracing is off, so there is nowhere to publish")
+    try:
+        result = sweep.publish(body.conflict_ids, body.labels)
+    except Exception as exc:
+        raise HTTPException(502, f"publish failed: {redact(str(exc))[:300]}")
+    if result is None:
+        raise HTTPException(404, "none of those conflicts are known; run a sweep first")
+    return result
+
+
+@app.post("/api/watch")
+def watch(body: WatchBody):
+    if not features()["watch"]:
+        raise HTTPException(503, "watch mode needs the live VSS backend")
+    return {"on": sweep.set_watch(body.on)}
+
+
+@app.get("/api/alerts")
+def alerts(since: int = 0):
+    return sweep.alerts_since(since)
 
 
 # ---- plain VSS passthroughs ----

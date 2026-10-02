@@ -252,3 +252,56 @@ def test_fixture_mode_replays_the_sample(client, monkeypatch):
     assert client.post("/api/workorder", json={"conflict_ids": [conflicts[0]["id"]]}).status_code == 200
     assert client.get("/api/stream", params={"source": "s3://x/y.mp4"}).status_code == 404
     assert client.get("/api/snapshot/nope").status_code == 404
+
+
+@pytest.mark.parametrize(
+    ("reply", "letter"),
+    [
+        ("<think>The car turns as the pedestrian crosses.</think><answer>B</answer>", "B"),
+        ("<think>Clear space.</think>\n<answer>(C)</answer>", "C"),
+        ("<think>The pedestrian steps back.</think> A", "A"),
+        ("no structure at all", None),
+        (None, None),
+    ],
+)
+def test_parse_think_answer(reply, letter):
+    import gpu
+
+    trace, got = gpu.parse_think_answer(reply)
+    assert got == letter and len(trace) <= 1500
+
+
+def test_second_look_overrides_and_extras_are_gated(client, monkeypatch):
+    import gpu
+    import main
+    import sweep
+
+    fake = FakeVSS()
+    fake.segment_bytes = lambda source, max_mb=12: b"mp4"
+    monkeypatch.setattr(sweep, "client", fake)
+    monkeypatch.setattr(main, "vss", fake)
+
+    assert client.get("/health").json()["features"] == {"cosmos": False, "publish": False, "watch": True}
+    assert client.post("/api/second-look", json={"conflict_id": "x"}).status_code == 503
+    assert client.post("/api/publish", json={"conflict_ids": ["x"]}).status_code == 503
+
+    job = _wait(client, client.post("/api/sweep", json={}).json()["job_id"])
+    verified = job["result"]["conflicts"][0]
+
+    monkeypatch.setenv("COSMOS3_REASON_URL", "http://gpu.invalid")
+    monkeypatch.setattr(gpu, "cosmos_verify", lambda clip, question: ("Vehicles waited.", "C"))
+    look = client.post("/api/second-look", json={"conflict_id": verified["id"]}).json()
+    assert look["letter"] == "C" and look["agrees"] is False and look["status"] == "rejected"
+    assert look["conflict"]["reject_reason"] == "Cosmos second look: normal yielding"
+    assert client.post("/api/second-look", json={"conflict_id": "unknown"}).status_code == 404
+
+    assert client.get("/api/alerts").json() == {"alerts": [], "cursor": 0, "on": False}
+
+
+def test_watch_alerts_only_on_new_verified_clips(client, monkeypatch):
+    import sweep
+
+    monkeypatch.setattr(sweep, "client", FakeVSS())
+    sweep._watch["seen"].clear()
+    assert [c["source"] for c in sweep._watch_pass()] == ["s3://b/seg_1.mp4"]
+    assert sweep._watch_pass() == []  # nothing new the second time round
