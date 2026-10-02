@@ -22,3 +22,7 @@ venv/
 .idea/
 .vscode/
 *.log
+
+# real sweep snapshots are generated on the VM and contain bucket names
+app/snap_before.json
+app/snap_after.json
