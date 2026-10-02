@@ -1,6 +1,7 @@
 """Print the shape of real VSS responses so the engine can be built against them.
 
-Run on the workshop VM from the repo root:  python scripts/probe.py
+Run on the workshop VM from the repo root:  python scripts/probe.py [--cosmos]
+With --cosmos it also sends one clip to Cosmos3-Reason, to show whether the live second look works.
 Output is safe to paste: bucket names, the team name, hosts and tokens are masked.
 Nothing is written to disk.
 """
@@ -18,6 +19,7 @@ import httpx
 from vss import VSSClient
 
 DASHCAM = "pie_cam-3"
+COSMOS_DEFAULT = "http://166.19.38.112:8001"  # the address in the organizers' gpu skills
 QUERY = "pedestrian crossing in front of the car"
 
 
@@ -63,6 +65,9 @@ def gpu_check():
     out = {"GPU_BEARER_TOKEN_set": bool(token)}
     for name, path in (("COSMOS3_REASON_URL", "/v1/models"), ("YOLO_URL", "/healthz")):
         url = os.environ.get(name)
+        if not url and name == "COSMOS3_REASON_URL":
+            out[name] = "not set, trying the documented default"
+            url = COSMOS_DEFAULT
         if not url:
             out[name] = "not set"
             continue
@@ -74,6 +79,28 @@ def gpu_check():
             except Exception as exc:
                 out[f"{name} {label}"] = type(exc).__name__
     return out
+
+
+def cosmos_check(vss, source):
+    """One real second look on one clip: does Cosmos3-Reason answer from here, and how fast?"""
+    import time
+
+    import gpu
+    import taxonomy
+
+    os.environ.setdefault("COSMOS3_REASON_URL", COSMOS_DEFAULT)
+    clip = vss.segment_bytes(source)
+    if clip is None:
+        return {"error": "clip missing or larger than 12 MB"}
+    question = taxonomy.SECOND_LOOK_PROMPT.format(question=taxonomy.CONFLICT_TYPES[0]["question"])
+    started = time.monotonic()
+    trace, letter = gpu.cosmos_verify(clip, question)
+    return {
+        "clip_mb": round(len(clip) / 1e6, 2),
+        "seconds": round(time.monotonic() - started, 1),
+        "letter": letter,
+        "trace": trace[:400],
+    }
 
 
 def main():
@@ -109,6 +136,8 @@ def main():
 
     show("W&B inference models", models)
     show("GPU endpoints (status codes only)", gpu_check)
+    if "--cosmos" in sys.argv and source:
+        show("Cosmos second look on that hit (--cosmos)", lambda: cosmos_check(vss, source))
     print("\n===== done: paste everything above =====")
 
 

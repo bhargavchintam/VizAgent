@@ -7,11 +7,11 @@ On the workshop VM, from the repo root:
     python scripts/vm_run.py --yes                 # no question asked
 
 Steps, in order:
-    probe      print the shape of real VSS responses
+    probe      print the shape of real VSS responses and try one Cosmos second look
     before     save app/snap_before.json (never overwritten once saved)
     reingest   re-ingest the chunks with the most conflict candidates, using our prompt, and wait
     after      save app/snap_after.json
-    deploy     deploy to /app and give the pod the Cosmos endpoint for the second look
+    deploy     deploy to /app with deploy/deploy.sh
 
 Steps are safe to re-run. Everything printed is also saved to vm_run_log.txt with bucket
 names, hosts and tokens masked, so the file can be pasted back to whoever builds the engine.
@@ -35,7 +35,6 @@ STATE = ROOT / ".vm_run_state.json"
 RAW_BEFORE = ROOT / "raw_before.json"
 STEPS = ("probe", "before", "reingest", "after", "deploy")
 FINISHED = ("completed", "complete", "done", "failed", "error")
-COSMOS_DEFAULT = "http://166.19.38.112:8001"  # the address in the organizers' gpu skills
 
 
 def parse_config(text):
@@ -85,7 +84,7 @@ def read_state():
 
 def step_probe(_args):
     out = subprocess.run(
-        [sys.executable, str(ROOT / "scripts" / "probe.py")], capture_output=True, text=True, check=False
+        [sys.executable, str(ROOT / "scripts" / "probe.py"), "--cosmos"], capture_output=True, text=True, check=False
     )
     say(out.stdout + out.stderr[-2000:])
 
@@ -258,29 +257,6 @@ def step_deploy(_args):
     if done.returncode != 0:
         say(f"deploy: deploy.sh exited with {done.returncode}. Paste this back.")
         return
-
-    # The second look needs the Cosmos endpoint inside the pod; deploy.sh does not pass it.
-    namespace = os.environ.get("USERNAME", "")
-    literals = [f"--from-literal=COSMOS3_REASON_URL={os.environ.get('COSMOS3_REASON_URL') or COSMOS_DEFAULT}"]
-    if os.environ.get("GPU_BEARER_TOKEN"):
-        literals.append(f"--from-literal=GPU_BEARER_TOKEN={os.environ['GPU_BEARER_TOKEN']}")
-    try:
-        manifest = subprocess.run(
-            ["kubectl", "-n", namespace, "create", "secret", "generic", "vizagent-gpu", *literals, "--dry-run=client", "-o", "yaml"],
-            capture_output=True, text=True, check=True,
-        ).stdout  # fmt: skip
-        subprocess.run(["kubectl", "-n", namespace, "apply", "-f", "-"], input=manifest, text=True, capture_output=True, check=True)
-        subprocess.run(
-            ["kubectl", "-n", namespace, "set", "env", "deploy/vizagent", "--from=secret/vizagent-gpu"],
-            capture_output=True, text=True, check=True,
-        )  # fmt: skip
-        subprocess.run(
-            ["kubectl", "-n", namespace, "rollout", "status", "deploy/vizagent", "--timeout=300s"],
-            capture_output=True, text=True, check=False,
-        )  # fmt: skip
-        say("deploy: the pod now has the Cosmos endpoint for the second look")
-    except (subprocess.CalledProcessError, FileNotFoundError) as exc:
-        say(f"deploy: could not add the Cosmos endpoint ({type(exc).__name__}); the second look stays off")
 
 
 RUN = {"probe": step_probe, "before": step_before, "reingest": step_reingest, "after": step_after, "deploy": step_deploy}

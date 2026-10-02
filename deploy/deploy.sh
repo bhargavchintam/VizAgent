@@ -14,14 +14,29 @@ mapfile -t TEAM_CONFIGS < <(find /config -maxdepth 1 -type f -name '*.config' | 
 (( ${#TEAM_CONFIGS[@]} == 1 )) || { echo "expected exactly one /config/*.config"; exit 1; }
 set -a && source "${TEAM_CONFIGS[0]}" && set +a
 
+if [[ -z "${KUBECONFIG:-}" ]]; then
+  for candidate in /config/kubeconfig /config/*-k8s.yaml; do
+    [[ -f "$candidate" ]] && export KUBECONFIG="$candidate" && break
+  done
+fi
+
+# The code ships as one ConfigMap, which Kubernetes caps at about 1 MiB.
+APP_BYTES=$(find "$APP_DIR" -maxdepth 1 -type f -printf '%s\n' | awk '{s+=$1} END {print s+0}')
+(( APP_BYTES <= 900000 )) || { echo "app/ is ${APP_BYTES} bytes; keep it under 900000 (trim the snapshots)"; exit 1; }
+
+# The Cosmos second look needs the shared GPU endpoint. Use the team config's value; if it
+# only has the bearer token, fall back to the address in the organizers' gpu skills.
+COSMOS_URL="${COSMOS3_REASON_URL:-${GPU_BEARER_TOKEN:+http://166.19.38.112:8001}}"
+
 NS="$USERNAME"
 APP_HOST="${INGRESS_URL#http://}"
 APP_HOST="${APP_HOST#https://}"
 APP_HOST="${APP_HOST%%/*}"
 
 for var in WANDB_API_KEY WANDB_TEAM WANDB_PROJECT; do
-  [[ -n "${!var:-}" ]] || echo "warning: $var is not set; LLM judging/tracing will be off"
+  [[ -n "${!var:-}" ]] || echo "warning: $var is not set; LLM grading/tracing will be off"
 done
+[[ -n "$COSMOS_URL" ]] || echo "note: no Cosmos endpoint in the team config; the second look will be off"
 
 echo "Deploying $APP_NAME to namespace $NS at http://$APP_HOST/app"
 
@@ -30,7 +45,7 @@ kubectl -n "$NS" create configmap "${APP_NAME}-code" \
   --from-file="$APP_DIR" \
   --dry-run=client -o yaml | kubectl apply -f -
 
-# 2. Secrets: VSS login + W&B inference
+# 2. Secrets: VSS login + W&B inference + the GPU endpoint for the second look
 kubectl -n "$NS" create secret generic "${APP_NAME}-secrets" \
   --from-literal=VSS_URL="$INGRESS_URL" \
   --from-literal=VSS_USERNAME="$USERNAME" \
@@ -38,6 +53,8 @@ kubectl -n "$NS" create secret generic "${APP_NAME}-secrets" \
   --from-literal=WANDB_API_KEY="${WANDB_API_KEY:-}" \
   --from-literal=WANDB_TEAM="${WANDB_TEAM:-}" \
   --from-literal=WANDB_PROJECT="${WANDB_PROJECT:-}" \
+  --from-literal=COSMOS3_REASON_URL="$COSMOS_URL" \
+  --from-literal=GPU_BEARER_TOKEN="${GPU_BEARER_TOKEN:-}" \
   --dry-run=client -o yaml | kubectl apply -f -
 
 # 3. Deployment + Service + Ingress (path /app on the team host, prefix stripped)
@@ -68,7 +85,18 @@ spec:
         - name: PORT
           value: "${APP_PORT}"
         - name: LLM_MODEL
-          value: "${LLM_MODEL:-meta-llama/Llama-3.1-8B-Instruct}"
+          value: "${LLM_MODEL:-nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B}"
+        # Feature switches (see API.md). Override at deploy time, e.g. VIZ_COSMOS=0 bash deploy/deploy.sh
+        - name: VIZ_COSMOS
+          value: "${VIZ_COSMOS:-1}"
+        - name: VIZ_PUBLISH
+          value: "${VIZ_PUBLISH:-1}"
+        - name: VIZ_WATCH
+          value: "${VIZ_WATCH:-1}"
+        - name: VIZ_CONTEXT
+          value: "${VIZ_CONTEXT:-1}"
+        - name: VIZ_REINGEST
+          value: "${VIZ_REINGEST:-0}"
         envFrom:
         - secretRef:
             name: ${APP_NAME}-secrets
@@ -116,6 +144,8 @@ metadata:
     app: ${APP_NAME}
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /\$2
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
 spec:
   ingressClassName: nginx
   rules:
