@@ -14,6 +14,10 @@ mapfile -t TEAM_CONFIGS < <(find /config -maxdepth 1 -type f -name '*.config' | 
 (( ${#TEAM_CONFIGS[@]} == 1 )) || { echo "expected exactly one /config/*.config"; exit 1; }
 set -a && source "${TEAM_CONFIGS[0]}" && set +a
 
+# Per-VM settings kept outside the repo, so every deploy (by hand or from a script) sees them:
+# e.g. DISPATCH_WEBHOOK_URL (a secret) and VIZ_AUTO_SECOND_LOOK=1.
+if [[ -f "$HOME/.vizagent.env" ]]; then set -a && source "$HOME/.vizagent.env" && set +a; fi
+
 if [[ -z "${KUBECONFIG:-}" ]]; then
   for candidate in /config/kubeconfig /config/*-k8s.yaml; do
     [[ -f "$candidate" ]] && export KUBECONFIG="$candidate" && break
