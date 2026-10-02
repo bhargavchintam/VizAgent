@@ -285,7 +285,7 @@ def test_second_look_overrides_and_extras_are_gated(client, monkeypatch):
     monkeypatch.setattr(sweep, "client", fake)
     monkeypatch.setattr(main, "vss", fake)
 
-    assert client.get("/health").json()["features"] == {"cosmos": False, "publish": False, "watch": True, "context": True, "reingest": False, "dispatch": False}
+    assert client.get("/health").json()["features"] == {"cosmos": False, "publish": False, "watch": False, "context": True, "reingest": False, "dispatch": False}
     assert client.post("/api/second-look", json={"conflict_id": "x"}).status_code == 503
     assert client.post("/api/publish", json={"conflict_ids": ["x"]}).status_code == 503
 

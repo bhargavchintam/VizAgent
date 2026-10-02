@@ -114,7 +114,8 @@ Causes and the fix each one picks (from `app/taxonomy.py`):
 |-------|------|-------|
 | env | `LLM_MODEL` | `nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B` (fallback `openai/gpt-oss-20b` is built in) |
 | Secret | `COSMOS3_REASON_URL`, `GPU_BEARER_TOKEN` | from `/config/<team>.config`; without the URL the second look is off |
-| env (optional) | `VIZ_COSMOS`, `VIZ_PUBLISH`, `VIZ_WATCH`, `VIZ_CONTEXT` | default on; `0` turns one off |
+| env (optional) | `VIZ_COSMOS`, `VIZ_PUBLISH`, `VIZ_CONTEXT` | default on; `0` turns one off |
+| env (optional) | `VIZ_WATCH`, `VIZ_WATCH_SECONDS` | watch is **off** by default (each pass re-runs every search); when on, passes are `VIZ_WATCH_SECONDS` apart (default 600) |
 | Secret | `DISPATCH_WEBHOOK_URL` | a Discord or Slack channel webhook for the work-order queue; set it on the VM before deploying (it is a secret: never commit it) |
 | env | `VIZ_AUTO_SECOND_LOOK` | `0` by default; `1` makes Cosmos Reason re-watch the top 3 clips after each sweep (only once the pod can reach the GPU) |
 | env | `VIZ_REINGEST` | `0` by default; `1` only after testing (it rewrites the team's index) |

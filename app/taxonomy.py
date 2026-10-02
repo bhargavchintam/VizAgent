@@ -46,8 +46,9 @@ EFFECTS = {
 FHWA = "FHWA Proven Safety Countermeasure"
 PRACTICE = "Common practice"
 
-# Dashcam phrasings say "ego vehicle": that is how Cosmos Reason's own dashcam captions name
-# the car holding the camera (7 of 58 captions; none say "camera car").
+# Dashcam phrasings come in two wordings. The stock Cosmos Reason captions call the car holding
+# the camera the "ego vehicle" (7 of 58 dashcam captions; none say "camera car"), while clips
+# re-ingested with our prompt say "camera car". One "ego vehicle" phrasing per type finds the former.
 # Each type has search phrasings for fixed street cameras and for the dashcam (where the
 # vehicle that matters is the one holding the camera), a direct question for the Cosmos
 # second look, and candidate fixes, best first.
@@ -58,8 +59,9 @@ CONFLICT_TYPES = [
         "queries": {
             "fixed": ["vehicle drives through the crosswalk while a pedestrian is crossing"],
             "dashcam": [
-                "pedestrian crossing in the crosswalk ahead while the ego vehicle is moving",
+                "pedestrian crossing in the crosswalk ahead while the camera car is moving",
                 "car ahead does not stop for a pedestrian crossing at the crosswalk",
+                "pedestrian crossing in the crosswalk ahead while the ego vehicle is moving",
             ],
         },
         "question": "Did a vehicle enter or pass through the crosswalk while a pedestrian was in it?",
@@ -82,8 +84,9 @@ CONFLICT_TYPES = [
         "queries": {
             "fixed": ["car turning at the intersection while a pedestrian crosses in front of it"],
             "dashcam": [
-                "ego vehicle turning while a pedestrian crosses in front of it",
+                "camera car turning while a pedestrian crosses in front of it",
                 "vehicle turning across the crosswalk close to a pedestrian",
+                "ego vehicle turning while a pedestrian crosses in front of it",
             ],
         },
         "question": "Did a turning vehicle cross the path of a pedestrian who was in the roadway?",
@@ -106,8 +109,9 @@ CONFLICT_TYPES = [
         "queries": {
             "fixed": ["pedestrian crossing the street outside a crosswalk in front of a moving car"],
             "dashcam": [
+                "pedestrian steps into the road mid-block in front of the camera car",
+                "pedestrian crossing the street between parked cars ahead of the camera car",
                 "pedestrian steps into the road mid-block in front of the ego vehicle",
-                "pedestrian crossing the street between parked cars ahead of the ego vehicle",
             ],
         },
         "question": "Did a pedestrian cross outside a crosswalk in the path of a moving vehicle?",
@@ -129,7 +133,10 @@ CONFLICT_TYPES = [
         "label": "Vehicle stopped on the crosswalk",
         "queries": {
             "fixed": ["vehicle stopped on the crosswalk while pedestrians walk around it"],
-            "dashcam": ["vehicle stopped on the crosswalk ahead with pedestrians walking around it"],
+            "dashcam": [
+                "vehicle stopped on the crosswalk ahead with pedestrians walking around it",
+                "vehicle stopped on the crosswalk in front of the ego vehicle with pedestrians walking around it",
+            ],
         },
         "question": "Was a vehicle stopped on the crosswalk while a pedestrian had to walk around it?",
         "countermeasures": [

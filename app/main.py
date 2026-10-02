@@ -71,7 +71,7 @@ def features():
     return {
         "cosmos": live and gpu.configured(),  # gpu.configured() also honours VIZ_COSMOS=0
         "publish": _flag("VIZ_PUBLISH", "1") and state["tracing"],
-        "watch": live and _flag("VIZ_WATCH", "1"),
+        "watch": live and _flag("VIZ_WATCH", "0"),  # off by default: every pass re-runs every search
         "context": live and _flag("VIZ_CONTEXT", "1"),
         "dispatch": extras.dispatch_configured(),
         "reingest": live and _flag("VIZ_REINGEST", "0"),

@@ -53,7 +53,9 @@ _jobs = {}
 _conflicts = {}
 _latest = {"job_id": None}
 _watch = {"on": False, "seen": set(), "alerts": []}
-WATCH_SECONDS = 45
+# Each watch pass re-runs every search (each one appears on the event's live search board and
+# loads the team's VSS backend), so passes are far apart.
+WATCH_SECONDS = int(os.environ.get("VIZ_WATCH_SECONDS", "600"))
 _lock = threading.Lock()
 
 

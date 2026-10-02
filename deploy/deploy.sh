@@ -118,7 +118,9 @@ ${HOST_ALIASES}
         - name: VIZ_PUBLISH
           value: "${VIZ_PUBLISH:-1}"
         - name: VIZ_WATCH
-          value: "${VIZ_WATCH:-1}"
+          value: "${VIZ_WATCH:-0}"
+        - name: VIZ_WATCH_SECONDS
+          value: "${VIZ_WATCH_SECONDS:-600}"
         - name: VIZ_CONTEXT
           value: "${VIZ_CONTEXT:-1}"
         - name: VIZ_REINGEST

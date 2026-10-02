@@ -119,7 +119,7 @@ feature's button when `/health` reports it on.
 | `LLM_MODEL` | `nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B` | The grading model (falls back to `openai/gpt-oss-20b` on error) |
 | `VIZ_COSMOS` | on | Live Cosmos second look. Also needs the GPU endpoint from the team config |
 | `VIZ_PUBLISH` | on | Save the review to W&B Weave. Also needs W&B tracing |
-| `VIZ_WATCH` | on | Check newly indexed clips and raise alerts |
+| `VIZ_WATCH` | off | Check newly indexed clips and raise alerts. Each pass re-runs every search (they show on the event's live search board), so it is off for the demo; `VIZ_WATCH_SECONDS` (default 600) spaces the passes |
 | `VIZ_CONTEXT` | on | Show the clips just before and after a conflict |
 | `VIZ_REINGEST` | off | Re-ingest from the app. Off by default because it rewrites the shared index |
 
@@ -160,4 +160,4 @@ API.md               # the contract between the engine and the page
 ## Team
 
 - Bindu Bhargava Reddy Chintam
-- Sripadha
+- Sripadha V
