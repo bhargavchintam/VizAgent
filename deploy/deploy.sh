@@ -40,10 +40,11 @@ done
 
 echo "Deploying $APP_NAME to namespace $NS at http://$APP_HOST/app"
 
-# 1. Code (flat directory only; ConfigMap limit ~1 MiB)
-kubectl -n "$NS" create configmap "${APP_NAME}-code" \
-  --from-file="$APP_DIR" \
-  --dry-run=client -o yaml | kubectl apply -f -
+# 1. Code (flat directory only; ConfigMap limit ~1 MiB). Replace rather than apply: apply keeps
+# a copy of the whole ConfigMap in an annotation capped at 256 KiB, which the snapshots exceed.
+CODE_YAML="$(kubectl -n "$NS" create configmap "${APP_NAME}-code" --from-file="$APP_DIR" --dry-run=client -o yaml)"
+printf '%s\n' "$CODE_YAML" | kubectl -n "$NS" replace -f - 2>/dev/null \
+  || printf '%s\n' "$CODE_YAML" | kubectl -n "$NS" create -f -
 
 # 2. Secrets: VSS login + W&B inference + the GPU endpoint for the second look
 kubectl -n "$NS" create secret generic "${APP_NAME}-secrets" \
