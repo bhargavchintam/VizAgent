@@ -113,7 +113,7 @@ def main():
 
     search = show(
         f"search '{QUERY}' on {DASHCAM} (first hit, first chunk)",
-        lambda: _trim(vss.search(QUERY, top_k=3, llm_top_n=0, metadata_filters={"camera_id": DASHCAM})),
+        lambda: _trim(vss.search(QUERY, top_k=3, llm_top_n=1, metadata_filters={"camera_id": DASHCAM})),
     )
     hit = ((search or {}).get("results") or [{}])[0]
     source, parent = hit.get("source"), hit.get("original_video")

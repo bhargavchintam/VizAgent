@@ -93,7 +93,7 @@ def find_candidates(camera_id, type_key, query, top_k):
         query,
         top_k=top_k,
         min_similarity=MIN_SIMILARITY,
-        llm_top_n=0,
+        llm_top_n=1,  # the backend rejects 0; 1 keeps its answer synthesis as small as it allows
         metadata_filters={"camera_id": camera_id},
     )
     return found.get("results", [])

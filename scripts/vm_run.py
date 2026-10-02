@@ -99,7 +99,7 @@ def dump_raw_before():
         for ctype in taxonomy.CONFLICT_TYPES:
             for query in ctype["queries"][sweep.view_of(camera)]:
                 found = sweep.client.search(
-                    query, top_k=15, min_similarity=sweep.MIN_SIMILARITY, llm_top_n=0,
+                    query, top_k=15, min_similarity=sweep.MIN_SIMILARITY, llm_top_n=1,
                     metadata_filters={"camera_id": camera},
                 )  # fmt: skip
                 dump.append({"camera": camera, "type": ctype["key"], "query": query, "results": found.get("results", [])})
@@ -140,7 +140,7 @@ def pick_chunks(per_dashcam=2, max_fixed=2):
         for ctype in taxonomy.CONFLICT_TYPES:
             for query in ctype["queries"][view]:
                 found = sweep.client.search(
-                    query, top_k=30, min_similarity=sweep.MIN_SIMILARITY, llm_top_n=0,
+                    query, top_k=30, min_similarity=sweep.MIN_SIMILARITY, llm_top_n=1,
                     metadata_filters={"camera_id": camera},
                 )  # fmt: skip
                 chunks = found.get("chunk_results") or []
