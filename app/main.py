@@ -1,7 +1,8 @@
-"""VizAgent web app: FastAPI server on 0.0.0.0:$PORT.
+"""ViZ Agent web app: FastAPI server on 0.0.0.0:$PORT.
 
 Ingress serves this at http://<team-host>/app and strips the /app prefix, so routes
 here live at / and the UI must call them with paths relative to the page.
+Routes and JSON shapes are documented in API.md.
 """
 
 import logging
@@ -16,14 +17,17 @@ from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 from starlette.background import BackgroundTask
 
-import agent
 import llm
-from vss import VSSClient
+import sweep
+import workorder
+from vss import redact
 
 logging.basicConfig(level=logging.INFO)
+# httpx logs every request URL at INFO, and the stream URL carries the login token.
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 HERE = Path(__file__).parent
-vss = VSSClient()
+vss = sweep.client
 state = {"tracing": False}
 
 
@@ -33,7 +37,7 @@ async def lifespan(_app):
     yield
 
 
-app = FastAPI(title="VizAgent", lifespan=lifespan)
+app = FastAPI(title="ViZ Agent", lifespan=lifespan)
 
 
 def _call(fn, *args, **kwargs):
@@ -41,11 +45,15 @@ def _call(fn, *args, **kwargs):
     try:
         return fn(*args, **kwargs)
     except RuntimeError as exc:
-        raise HTTPException(503, str(exc))
+        raise HTTPException(503, redact(str(exc)))
     except httpx.HTTPStatusError as exc:
-        raise HTTPException(exc.response.status_code, exc.response.text[:500])
+        raise HTTPException(exc.response.status_code, redact(exc.response.text[:500]))
     except httpx.HTTPError as exc:
-        raise HTTPException(502, f"VSS backend unreachable: {exc}")
+        raise HTTPException(502, f"VSS backend unreachable: {redact(str(exc))}")
+
+
+def features():
+    return {"cosmos": False, "publish": False, "watch": False}
 
 
 class SearchBody(BaseModel):
@@ -63,6 +71,15 @@ class AskBody(BaseModel):
     top_k: int = 10
 
 
+class SweepBody(BaseModel):
+    cameras: list[str] | None = None
+    top_k: int = 10
+
+
+class WorkOrderBody(BaseModel):
+    conflict_ids: list[str]
+
+
 @app.get("/")
 def index():
     return FileResponse(HERE / "index.html")
@@ -75,7 +92,47 @@ def health():
         "vss_configured": vss.configured,
         "llm_configured": llm.configured(),
         "tracing": state["tracing"],
+        "gpu_configured": False,
+        "mode": "fixture" if sweep.fixture_mode() else "live",
+        "features": features(),
     }
+
+
+# ---- the agent ----
+
+
+@app.post("/api/sweep")
+def start_sweep(body: SweepBody):
+    if not sweep.fixture_mode() and not vss.configured:
+        raise HTTPException(503, "VSS is not configured: set VSS_URL/VSS_USERNAME/VSS_PASSWORD")
+    return {"job_id": sweep.start_job(body.cameras, body.top_k)}
+
+
+@app.get("/api/sweep/{job_id}")
+def sweep_status(job_id: str):
+    job = sweep.get_job(job_id)
+    if job is None:
+        raise HTTPException(404, "no such sweep")
+    return job
+
+
+@app.get("/api/snapshot/{name}")
+def snapshot(name: str):
+    result = sweep.load_snapshot(name) if name in ("before", "after") else None
+    if result is None:
+        raise HTTPException(404, f"no '{name}' snapshot saved")
+    return result
+
+
+@app.post("/api/workorder")
+def draft_work_order(body: WorkOrderBody):
+    conflicts = [c for c in map(sweep.get_conflict, body.conflict_ids) if c]
+    if not conflicts:
+        raise HTTPException(404, "none of those conflicts are known; run a sweep first")
+    return workorder.draft(conflicts)
+
+
+# ---- plain VSS passthroughs ----
 
 
 @app.post("/api/search")
@@ -86,12 +143,6 @@ def search(body: SearchBody):
 @app.post("/api/ask")
 def ask(body: AskBody):
     return _call(vss.ask, body.question, body.original_video, body.top_k)
-
-
-@app.post("/api/triage")
-def triage(body: SearchBody):
-    filters = body.model_dump(exclude={"query", "top_k"})
-    return _call(agent.triage, vss, body.query, body.top_k, **filters)
 
 
 @app.get("/api/explore")
@@ -112,6 +163,8 @@ def stats():
 @app.get("/api/stream")
 def stream(source: str, request: Request):
     """Proxy video playback so the backend JWT never reaches the browser."""
+    if sweep.fixture_mode():
+        raise HTTPException(404, "no video in fixture mode")
     upstream = _call(vss.open_stream, source, request.headers.get("range"))
     if upstream.status_code >= 400:
         upstream.close()

@@ -5,8 +5,14 @@ Credentials come from the environment only, never from files in this repo.
 """
 
 import os
+import re
 
 import httpx
+
+
+def redact(text):
+    """Strip tokens from text that may be logged or sent to a browser."""
+    return re.sub(r"(token=|Bearer\s+)[\w.\-]+", r"\1<redacted>", text)
 
 
 def _env(*names, default=""):
@@ -110,6 +116,26 @@ class VSSClient:
             timeout=None,
         )
         return self._http.send(request, stream=True)
+
+    def segment_bytes(self, source, max_mb=12):
+        """One segment clip as bytes, or None if it is missing or larger than max_mb."""
+        limit = max_mb * 1024 * 1024
+        response = self.open_stream(source)
+        try:
+            if response.status_code >= 400:
+                return None
+            data = bytearray()
+            for chunk in response.iter_bytes():
+                data.extend(chunk)
+                if len(data) > limit:
+                    return None
+            return bytes(data)
+        finally:
+            response.close()
+
+    def segments(self, original_video):
+        """All indexed segments of one parent video."""
+        return self._request("GET", "tools/segments", params={"original_video": original_video})
 
     # ---- metadata / stats ----
 
