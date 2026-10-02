@@ -11,7 +11,26 @@ import re
 
 import httpx
 
-DEFAULT_MODEL = "nvidia/cosmos3-reason"
+# config.example lists "nvidia/cosmos3-reason", but the shared endpoint serves
+# "nvidia/cosmos3-nano-reasoner" (and 404s the other id), so ask the endpoint which model it serves.
+DEFAULT_MODEL = "nvidia/cosmos3-nano-reasoner"
+_model = {}
+
+
+def cosmos_model():
+    """The model id the endpoint serves, from /v1/models (cached); falls back to the env or the default."""
+    if "id" not in _model:
+        token = os.environ.get("GPU_BEARER_TOKEN")
+        try:
+            listed = httpx.get(
+                os.environ["COSMOS3_REASON_URL"].rstrip("/") + "/v1/models",
+                headers={"Authorization": f"Bearer {token}"} if token else {},
+                timeout=10,
+            ).json()["data"]
+            _model["id"] = listed[0]["id"]
+        except Exception:
+            return os.environ.get("COSMOS3_REASON_MODEL") or DEFAULT_MODEL
+    return _model["id"]
 
 
 def configured():
@@ -38,7 +57,7 @@ def cosmos_verify(mp4_bytes, question, timeout=90.0):
         os.environ["COSMOS3_REASON_URL"].rstrip("/") + "/v1/chat/completions",
         headers={"Authorization": f"Bearer {token}"} if token else {},
         json={
-            "model": os.environ.get("COSMOS3_REASON_MODEL", DEFAULT_MODEL),
+            "model": cosmos_model(),
             "messages": [
                 {
                     "role": "user",

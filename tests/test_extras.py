@@ -284,3 +284,22 @@ def test_vss_retries_busy_backend_then_succeeds(monkeypatch):
     codes = iter([502, 502, 502])
     with pytest.raises(httpx.HTTPStatusError):
         api.search("q")
+
+
+def test_cosmos_model_comes_from_the_endpoint(monkeypatch):
+    import httpx
+
+    import gpu
+
+    monkeypatch.setenv("COSMOS3_REASON_URL", "http://gpu.test:8001")
+    monkeypatch.setattr(gpu, "_model", {})
+    listed = {"data": [{"id": "nvidia/cosmos3-nano-reasoner"}]}
+    monkeypatch.setattr(httpx, "get", lambda url, headers, timeout: httpx.Response(200, json=listed, request=httpx.Request("GET", url)))
+    assert gpu.cosmos_model() == "nvidia/cosmos3-nano-reasoner"
+
+    def down(url, headers, timeout):
+        raise httpx.ConnectError("down")
+
+    monkeypatch.setattr(gpu, "_model", {})
+    monkeypatch.setattr(httpx, "get", down)
+    assert gpu.cosmos_model() == gpu.DEFAULT_MODEL
