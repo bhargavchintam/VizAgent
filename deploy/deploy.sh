@@ -24,18 +24,37 @@ if [[ -z "${KUBECONFIG:-}" ]]; then
   done
 fi
 
-# The code ships as one ConfigMap, which Kubernetes caps at about 1 MiB.
-APP_BYTES=$(find "$APP_DIR" -maxdepth 1 -type f -printf '%s\n' | awk '{s+=$1} END {print s+0}')
-(( APP_BYTES <= 900000 )) || { echo "app/ is ${APP_BYTES} bytes; keep it under 900000 (trim the snapshots)"; exit 1; }
-
-# The Cosmos second look needs the shared GPU endpoint. Use the team config's value; if it
-# only has the bearer token, fall back to the address in the organizers' gpu skills.
-COSMOS_URL="${COSMOS3_REASON_URL:-${GPU_BEARER_TOKEN:+http://166.19.38.112:8001}}"
-
 NS="$USERNAME"
 APP_HOST="${INGRESS_URL#http://}"
 APP_HOST="${APP_HOST#https://}"
 APP_HOST="${APP_HOST%%/*}"
+
+# The sweep snapshots are generated on a VM and are not in git. If this checkout has none,
+# keep the ones the live app already serves, so a redeploy from another VM does not lose them.
+for name in before after; do
+  SNAP="$APP_DIR/snap_${name}.json"
+  if [[ ! -s "$SNAP" ]]; then
+    curl -sf "http://${APP_HOST}/app/api/snapshot/${name}" -o "$SNAP" && echo "kept the deployed '${name}' snapshot" || rm -f "$SNAP"
+  fi
+done
+
+# The code ships as one ConfigMap, which Kubernetes caps at about 1 MiB.
+APP_BYTES=$(find "$APP_DIR" -maxdepth 1 -type f -printf '%s\n' | awk '{s+=$1} END {print s+0}')
+(( APP_BYTES <= 900000 )) || { echo "app/ is ${APP_BYTES} bytes; keep it under 900000 (trim the snapshots)"; exit 1; }
+
+# Pods cannot resolve the team hostname (only the VM can), so pin it inside the pod to the
+# address the VM resolves. Without this the app in the pod cannot reach VSS at all.
+APP_IP="$(getent ahostsv4 "$APP_HOST" 2>/dev/null | awk '{print $1; exit}')"
+HOST_ALIASES=""
+if [[ -n "$APP_IP" ]]; then
+  printf -v HOST_ALIASES '      hostAliases:\n      - ip: "%s"\n        hostnames: ["%s"]' "$APP_IP" "$APP_HOST"
+else
+  echo "warning: could not resolve $APP_HOST here; the pod may not reach VSS"
+fi
+
+# The Cosmos second look needs the shared GPU endpoint. Use the team config's value; if it
+# only has the bearer token, fall back to the address in the organizers' gpu skills.
+COSMOS_URL="${COSMOS3_REASON_URL:-${GPU_BEARER_TOKEN:+http://166.19.38.112:8001}}"
 
 for var in WANDB_API_KEY WANDB_TEAM WANDB_PROJECT; do
   [[ -n "${!var:-}" ]] || echo "warning: $var is not set; LLM grading/tracing will be off"
@@ -81,6 +100,7 @@ spec:
       labels:
         app: ${APP_NAME}
     spec:
+${HOST_ALIASES}
       containers:
       - name: app
         image: python:3.12-slim
