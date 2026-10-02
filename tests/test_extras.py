@@ -303,3 +303,20 @@ def test_cosmos_model_comes_from_the_endpoint(monkeypatch):
     monkeypatch.setattr(gpu, "_model", {})
     monkeypatch.setattr(httpx, "get", down)
     assert gpu.cosmos_model() == gpu.DEFAULT_MODEL
+
+
+def test_snapshots_never_overwrite_the_live_sweep(monkeypatch, tmp_path):
+    import json
+
+    import sweep
+
+    live = {**_conflict("same"), "status": "verified"}
+    stale = {**_conflict("same"), "status": "rejected"}
+    snap = tmp_path / "snap_after.json"
+    snap.write_text(json.dumps({"conflicts": [stale, _conflict("only-in-snapshot")]}))
+    monkeypatch.setattr(sweep, "_conflicts", {})
+    monkeypatch.setattr(sweep, "SNAPSHOTS", {"after": snap})
+    sweep.remember({"conflicts": [live]})  # the live sweep
+    sweep.load_snapshot("after")  # what the page triggers on every visit
+    assert sweep.get_conflict("same") is live  # a second look must update the live copy
+    assert sweep.get_conflict("only-in-snapshot")["id"] == "only-in-snapshot"

@@ -551,10 +551,16 @@ def run_sweep(cameras=None, top_k=10, job_id=None):
 # ---- jobs, snapshots ----
 
 
-def remember(result):
-    """Index a sweep's conflicts by id so work orders and second looks can find them."""
+def remember(result, overwrite=True):
+    """Index a sweep's conflicts by id so work orders and second looks can find them.
+
+    Saved snapshots pass overwrite=False: the page loads them on every visit, and they must not
+    replace the live sweep's conflicts, or a second look would update a stale copy.
+    """
     if result:
-        _conflicts.update({c["id"]: c for c in result.get("conflicts", [])})
+        for conflict in result.get("conflicts", []):
+            if overwrite or conflict["id"] not in _conflicts:
+                _conflicts[conflict["id"]] = conflict
     return result
 
 
@@ -569,7 +575,7 @@ def load_snapshot(name):
     path = SNAPSHOTS.get(name)
     if path is None or not path.exists():
         return None
-    return remember(json.loads(path.read_text(encoding="utf-8")))
+    return remember(json.loads(path.read_text(encoding="utf-8")), overwrite=False)
 
 
 def save_snapshot(result, path):
