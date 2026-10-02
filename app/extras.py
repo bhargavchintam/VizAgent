@@ -5,9 +5,15 @@
 - The human review logged as a Weave evaluation (precision of the agent).
 - Context: the clips just before and after a conflict.
 - Re-ingest loop: propose a sharper ingestion prompt for a conflict type and re-ingest one chunk.
+- Review numbers: what the thumbs say about search alone vs the checks.
+- Dispatch: post an approved work order to the team's work-order queue (a Discord or Slack webhook).
 """
 
 import logging
+import os
+from datetime import datetime
+
+import httpx
 
 import llm
 import sweep
@@ -44,8 +50,24 @@ def _precision(conflicts, labels):
     return round(sum(judged) / len(judged), 2) if judged else None
 
 
+def review_numbers(conflicts, labels):
+    """What a person's thumbs say: search alone vs after the checks, and whether the filtered clips were false alarms."""
+    judged = [c for c in conflicts if c["id"] in labels]
+    rejected = [c for c in judged if c["status"] == "rejected"]
+
+    def tally(group):
+        return {"real": sum(bool(labels[c["id"]]) for c in group), "total": len(group)}
+
+    return {
+        "search_only": tally(judged),
+        "after_checks": tally([c for c in judged if c["status"] == "verified"]),
+        "filtered_out": {"false_alarms": sum(not labels[c["id"]] for c in rejected), "total": len(rejected)},
+    }
+
+
 def fixture_publish(conflicts, labels):
-    return {"url": None, "rows": len(conflicts), "precision": _precision(conflicts, labels), "eval_url": None}
+    return {"url": None, "rows": len(conflicts), "precision": _precision(conflicts, labels), "eval_url": None,
+            "review": review_numbers(conflicts, labels)}  # fmt: skip
 
 
 # ---- human review as a Weave evaluation ----
@@ -71,7 +93,15 @@ def log_review(conflicts, labels):
         )
         prediction.log_score("human_agrees", bool(labels[c["id"]]))
         prediction.finish()
-    ev.log_summary({"precision": _precision(conflicts, labels), "reviewed": len(reviewed)})
+    numbers = review_numbers(conflicts, labels)
+    share = lambda part: round(part["real"] / part["total"], 3) if part["total"] else None
+    ev.log_summary({
+        "precision": _precision(conflicts, labels),
+        "reviewed": len(reviewed),
+        "search_only_precision": share(numbers["search_only"]),
+        "after_checks_precision": share(numbers["after_checks"]),
+        "false_alarms_filtered": numbers["filtered_out"]["false_alarms"],
+    })  # fmt: skip
     return getattr(ev, "ui_url", None) or _weave_url("evaluations")
 
 
@@ -162,3 +192,39 @@ def start_reingest(original_video, prompt=None):
 
 def reingest_status(job_id):
     return sweep.client.reingest_status(job_id)
+
+
+# ---- dispatch: send an approved work order to the work-order queue ----
+
+
+def _dispatch_url():
+    return os.environ.get("DISPATCH_WEBHOOK_URL", "").strip()
+
+
+def dispatch_configured():
+    return bool(_dispatch_url())
+
+
+def _payload(order, url):
+    text = order["markdown"].replace("(DRAFT)", "(APPROVED)")
+    if "discord.com/api/webhooks" in url or "discordapp.com/api/webhooks" in url:
+        return "discord", {"username": "ViZ Agent", "content": text[:1900]}
+    if "hooks.slack.com" in url:
+        return "slack", {"text": text[:3500]}
+    return "webhook", order
+
+
+def send_work_order(order):
+    """Post an engineer-approved work order to the queue. The webhook URL is a secret: never echo it."""
+    url = _dispatch_url()
+    if not url:
+        raise RuntimeError("no work-order queue is configured (DISPATCH_WEBHOOK_URL)")
+    channel, payload = _payload(order, url)
+    try:
+        response = httpx.post(url, json=payload, timeout=15)
+    except httpx.HTTPError as exc:
+        raise RuntimeError(f"could not reach the work-order queue ({type(exc).__name__})") from None
+    if response.status_code >= 400:
+        raise RuntimeError(f"the work-order queue answered HTTP {response.status_code}")
+    sent_at = datetime.now().astimezone().isoformat(timespec="seconds")
+    return {**order, "status": "SENT", "sent_to": channel, "sent_at": sent_at}

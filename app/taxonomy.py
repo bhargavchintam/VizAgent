@@ -46,6 +46,8 @@ EFFECTS = {
 FHWA = "FHWA Proven Safety Countermeasure"
 PRACTICE = "Common practice"
 
+# Dashcam phrasings say "ego vehicle": that is how Cosmos Reason's own dashcam captions name
+# the car holding the camera (7 of 58 captions; none say "camera car").
 # Each type has search phrasings for fixed street cameras and for the dashcam (where the
 # vehicle that matters is the one holding the camera), a direct question for the Cosmos
 # second look, and candidate fixes, best first.
@@ -56,7 +58,7 @@ CONFLICT_TYPES = [
         "queries": {
             "fixed": ["vehicle drives through the crosswalk while a pedestrian is crossing"],
             "dashcam": [
-                "pedestrian crossing in the crosswalk ahead while the camera car is moving",
+                "pedestrian crossing in the crosswalk ahead while the ego vehicle is moving",
                 "car ahead does not stop for a pedestrian crossing at the crosswalk",
             ],
         },
@@ -80,7 +82,7 @@ CONFLICT_TYPES = [
         "queries": {
             "fixed": ["car turning at the intersection while a pedestrian crosses in front of it"],
             "dashcam": [
-                "camera car turning while a pedestrian crosses in front of it",
+                "ego vehicle turning while a pedestrian crosses in front of it",
                 "vehicle turning across the crosswalk close to a pedestrian",
             ],
         },
@@ -104,8 +106,8 @@ CONFLICT_TYPES = [
         "queries": {
             "fixed": ["pedestrian crossing the street outside a crosswalk in front of a moving car"],
             "dashcam": [
-                "pedestrian steps into the road mid-block in front of the camera car",
-                "pedestrian crossing the street between parked cars ahead of the camera car",
+                "pedestrian steps into the road mid-block in front of the ego vehicle",
+                "pedestrian crossing the street between parked cars ahead of the ego vehicle",
             ],
         },
         "question": "Did a pedestrian cross outside a crosswalk in the path of a moving vehicle?",

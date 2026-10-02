@@ -36,7 +36,7 @@ def test_health_reports_unconfigured(client):
     assert body["ok"] is True
     assert (body["vss_configured"], body["llm_configured"], body["tracing"]) == (False, False, False)
     assert body["mode"] == "live"
-    assert set(body["features"]) == {"cosmos", "publish", "watch", "context", "reingest"}
+    assert set(body["features"]) == {"cosmos", "publish", "watch", "context", "reingest", "dispatch"}
     assert not any(body["features"].values())  # nothing is configured, so every extra is off
 
 
@@ -216,6 +216,9 @@ def test_sweep_end_to_end_then_work_order(client, monkeypatch):
     job = _wait(client, client.post("/api/sweep", json={}).json()["job_id"])
     assert job["status"] == "done", job.get("error")
     assert len(job["steps"]) >= 3
+    texts = " ".join(step["text"] for step in job["steps"])
+    assert "YOLO11 detections and Cosmos Reason verdicts stored at ingest" in texts
+    assert job["result"]["weave_url"] is None  # tracing is off in tests
     result = job["result"]
     assert result["cameras"] == ["pie_cam-3"]
     assert result["funnel"] == {"candidates": 3, "verified": 1, "unverified": 0, "rejected": 2}
@@ -282,7 +285,7 @@ def test_second_look_overrides_and_extras_are_gated(client, monkeypatch):
     monkeypatch.setattr(sweep, "client", fake)
     monkeypatch.setattr(main, "vss", fake)
 
-    assert client.get("/health").json()["features"] == {"cosmos": False, "publish": False, "watch": True, "context": True, "reingest": False}
+    assert client.get("/health").json()["features"] == {"cosmos": False, "publish": False, "watch": True, "context": True, "reingest": False, "dispatch": False}
     assert client.post("/api/second-look", json={"conflict_id": "x"}).status_code == 503
     assert client.post("/api/publish", json={"conflict_ids": ["x"]}).status_code == 503
 

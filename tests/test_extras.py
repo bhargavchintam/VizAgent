@@ -191,3 +191,76 @@ def test_no_token_in_error_text(live, monkeypatch):
     api, _ = live
     resp = api.post("/api/second-look", json={"conflict_id": "x2"})
     assert resp.status_code == 502 and "SECRET123" not in resp.text
+
+
+def test_review_numbers_split_search_from_checks():
+    import extras
+
+    conflicts = [{**_conflict(i), "status": status} for i, status in
+                 [("a", "verified"), ("b", "verified"), ("c", "rejected"), ("d", "rejected"), ("e", "unverified")]]  # fmt: skip
+    labels = {"a": True, "b": False, "c": False, "d": True, "e": True}
+    assert extras.review_numbers(conflicts, labels) == {
+        "search_only": {"real": 3, "total": 5},
+        "after_checks": {"real": 1, "total": 2},
+        "filtered_out": {"false_alarms": 1, "total": 2},
+    }
+
+
+def test_send_work_order_posts_to_discord_and_never_leaks_the_url(live, monkeypatch):
+    import httpx
+
+    api, _ = live
+    hook = "https://discord.com/api/webhooks/123/SECRET-TOKEN"
+    posted = {}
+
+    def fake_post(url, json, timeout):
+        posted.update(url=url, json=json)
+        return httpx.Response(204, request=httpx.Request("POST", url))
+
+    assert api.post("/api/workorder/send", json={"conflict_ids": ["x2"]}).status_code == 503  # no queue configured
+    monkeypatch.setenv("DISPATCH_WEBHOOK_URL", hook)
+    monkeypatch.setattr(httpx, "post", fake_post)
+    sent = api.post("/api/workorder/send", json={"conflict_ids": ["x2"]}).json()
+    assert sent["status"] == "SENT" and sent["sent_to"] == "discord" and sent["id"].startswith("VZ-")
+    assert posted["url"] == hook and "(APPROVED)" in posted["json"]["content"] and len(posted["json"]["content"]) <= 1900
+
+    def down(url, json, timeout):
+        raise httpx.ConnectError(f"cannot connect to {url}")
+
+    monkeypatch.setattr(httpx, "post", down)
+    resp = api.post("/api/workorder/send", json={"conflict_ids": ["x2"]})
+    assert resp.status_code == 503 and "SECRET-TOKEN" not in resp.text
+
+
+def test_auto_second_look_rechecks_the_top_clips(monkeypatch):
+    import sweep
+
+    conflicts = [{**_conflict(i), "status": status, "severity": sev} for i, status, sev in
+                 [("a", "verified", 3), ("b", "unverified", 1), ("c", "verified", 2), ("d", "verified", 1), ("e", "rejected", 0)]]  # fmt: skip
+    looked = []
+
+    def fake_second_look(conflict_id):
+        looked.append(conflict_id)
+        conflict = next(c for c in conflicts if c["id"] == conflict_id)
+        conflict["status"] = "rejected" if conflict_id == "b" else "verified"
+        return {"letter": "C" if conflict_id == "b" else "B", "status": conflict["status"]}
+
+    monkeypatch.setattr(sweep, "second_look", fake_second_look)
+    job = {"job_id": "j", "steps": [], "_started": 0.0,
+           "result": {"conflicts": conflicts, "cameras": ["sf_streets_cam-2"], "mode": "live"}}  # fmt: skip
+    monkeypatch.setitem(sweep._jobs, "j", job)
+    sweep._auto_second_look(job)
+    assert looked == ["a", "b", "c"]  # the top three that were not already rejected
+    assert "re-watched 3 clip(s): 2 confirmed, 1 dropped" in job["steps"][-1]["text"]
+    assert job["result"]["funnel"]["verified"] == 3
+
+
+def test_fixture_send_and_publish_numbers(client, monkeypatch):  # noqa: F811
+    monkeypatch.setenv("VIZ_MODE", "fixture")
+    assert client.get("/health").json()["features"]["dispatch"] is True
+    job = client.get(f"/api/sweep/{client.post('/api/sweep', json={}).json()['job_id']}").json()
+    first = job["result"]["conflicts"][0]["id"]
+    sent = client.post("/api/workorder/send", json={"conflict_ids": [first]}).json()
+    assert sent["status"] == "SENT" and "fixture" in sent["sent_to"]
+    pub = client.post("/api/publish", json={"conflict_ids": [first], "labels": {first: True}}).json()
+    assert pub["review"]["search_only"] == {"real": 1, "total": 1}

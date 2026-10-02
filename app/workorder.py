@@ -1,7 +1,8 @@
 """Turn verified conflicts into a drafted work order.
 
 The ticket follows the Open311 GeoReport v2 service-request fields so a city system could
-ingest it. It is drafted only: nothing here sends it anywhere. Locations come from the
+ingest it. Drafting never sends it: main.py posts it to the team's work-order queue only
+when an engineer approves it and presses Send. Locations come from the
 index (camera, city, drive and time offset); GPS coordinates are never invented.
 """
 
@@ -86,7 +87,7 @@ def draft(conflicts):
         lines.append("- **Alternatives:** " + "; ".join(f["name"] for f in fixes[1:]))
     lines += ["", "## Evidence", ""]
     lines += [f"{i}. {e['where']}: {e['type']}, severity {e['severity']}/3. {e['reason']}" for i, e in enumerate(evidence, 1)]
-    lines += ["", "_Drafted by ViZ Agent from video evidence. Not sent. Needs engineer approval._"]
+    lines += ["", "_Drafted by ViZ Agent from video evidence. Goes to the work-order queue only after an engineer approves it._"]
 
     return {
         "id": order_id,

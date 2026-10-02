@@ -65,13 +65,15 @@ def features():
     Re-ingest stays off unless VIZ_REINGEST=1, because it rewrites the team's shared index.
     """
     if sweep.fixture_mode():
-        return {"cosmos": True, "publish": True, "watch": True, "context": True, "reingest": _flag("VIZ_REINGEST", "0")}
+        return {"cosmos": True, "publish": True, "watch": True, "context": True, "dispatch": True,
+                "reingest": _flag("VIZ_REINGEST", "0")}  # fmt: skip
     live = vss.configured
     return {
         "cosmos": live and gpu.configured(),  # gpu.configured() also honours VIZ_COSMOS=0
         "publish": _flag("VIZ_PUBLISH", "1") and state["tracing"],
         "watch": live and _flag("VIZ_WATCH", "1"),
         "context": live and _flag("VIZ_CONTEXT", "1"),
+        "dispatch": extras.dispatch_configured(),
         "reingest": live and _flag("VIZ_REINGEST", "0"),
     }
 
@@ -201,6 +203,19 @@ def draft_work_order(body: WorkOrderBody):
     return workorder.draft(conflicts)
 
 
+@app.post("/api/workorder/send")
+def send_work_order(body: WorkOrderBody):
+    """Post an engineer-approved work order to the team's work-order queue."""
+    _require("dispatch")
+    conflicts = [c for c in map(sweep.get_conflict, body.conflict_ids) if c]
+    if not conflicts:
+        raise HTTPException(404, "none of those conflicts are known; run a sweep first")
+    order = workorder.draft(conflicts)
+    if sweep.fixture_mode():
+        return {**order, "status": "SENT", "sent_to": "nowhere (fixture mode)"}
+    return _guard(extras.send_work_order, order)
+
+
 # ---- extras (see /health features) ----
 
 
@@ -227,6 +242,7 @@ def publish(body: PublishBody):
     try:
         result = sweep.publish(body.conflict_ids, body.labels)
         result["eval_url"] = extras.log_review(conflicts, body.labels)
+        result["review"] = extras.review_numbers(conflicts, body.labels)
     except Exception as exc:
         raise HTTPException(502, f"publish failed: {redact(str(exc))[:300]}")
     return result

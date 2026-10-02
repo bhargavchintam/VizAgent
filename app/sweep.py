@@ -36,6 +36,10 @@ MAX_CANDIDATES = 60
 # plus 8 parallel detection calls, so keep the load small.
 SEARCH_WORKERS = int(os.environ.get("VIZ_SEARCH_WORKERS", "2"))
 CHECK_WORKERS = int(os.environ.get("VIZ_CHECK_WORKERS", "4"))
+# Optional: after a sweep, Cosmos Reason re-watches the top clips with a targeted question.
+AUTO_SECOND_LOOK = os.environ.get("VIZ_AUTO_SECOND_LOOK", "0") == "1"
+AUTO_LOOK_COUNT = 3
+AUTO_LOOK_SECONDS = float(os.environ.get("VIZ_AUTO_SECOND_LOOK_SECONDS", "150"))
 CAPTION_LIMIT = 600
 PEOPLE = {"person", "pedestrian"}
 VEHICLES = {"car", "truck", "bus", "motorcycle", "bicycle", "van", "vehicle"}
@@ -389,10 +393,16 @@ _LETTER_GRADES = {
 }
 
 
+_graded = {"n": 0}
+
+
 def _grade_or_fallback(candidate, stored, yolo):
     if llm.configured():
         try:
-            return grade(candidate["caption"][:2000], candidate["type"]["label"], stored["letter"], yolo["note"])
+            graded = grade(candidate["caption"][:2000], candidate["type"]["label"], stored["letter"], yolo["note"])
+            with _lock:
+                _graded["n"] += 1
+            return graded
         except Exception as exc:
             log.warning("grade failed, using the saved verdict: %s", type(exc).__name__)
     if stored["letter"]:
@@ -510,12 +520,21 @@ def run_sweep(cameras=None, top_k=10, job_id=None):
         raise RuntimeError("VSS is not configured: set VSS_URL/VSS_USERNAME/VSS_PASSWORD")
     client.login()  # once, before the worker threads start
     cameras = cameras or discover_cameras()
-    _step(job_id, f"Sweeping {len(cameras)} camera(s) for {len(taxonomy.CONFLICT_TYPES)} conflict types")
+    _step(
+        job_id,
+        f"Searching {len(cameras)} camera(s) for {len(taxonomy.CONFLICT_TYPES)} conflict types "
+        "(Cosmos Embed1 hybrid search over VastDB)",
+    )
     candidates = collect_candidates(cameras, top_k)
-    _step(job_id, f"Search found {len(candidates)} candidate clips")
-    _step(job_id, "Checking each clip: saved Cosmos verdict, object detector, severity grade")
+    _step(job_id, f"Found {len(candidates)} candidate clips")
+    _step(job_id, "Checking each clip against YOLO11 detections and Cosmos Reason verdicts stored at ingest")
+    started, _graded["n"] = time.monotonic(), 0
     with llm.ThreadPoolExecutor(max_workers=CHECK_WORKERS) as pool:
         conflicts = list(pool.map(_assess, candidates))
+    if _graded["n"]:
+        model = llm.models()[0].rsplit("/", 1)[-1]
+        model = "Nemotron" if "nemotron" in model.lower() else model
+        _step(job_id, f"{model} on W&B Inference graded {_graded['n']} clip(s) in {time.monotonic() - started:.0f} s")
     result = summarize(conflicts, cameras)
     funnel = result["funnel"]
     _step(
@@ -573,7 +592,20 @@ def start_job(cameras=None, top_k=10):
 
 def _run_job(job, cameras, top_k):
     try:
-        job["result"] = remember(run_sweep(cameras, top_k, job["job_id"]))
+        weave_url = None
+        if llm.tracing_on() and hasattr(run_sweep, "call"):
+            # .call() also returns the trace, so the page can link straight to this run in W&B Weave.
+            result, call = run_sweep.call(cameras, top_k, job["job_id"], __should_raise=True)
+            try:
+                weave_url = call.ui_url
+            except Exception:
+                weave_url = None
+        else:
+            result = run_sweep(cameras, top_k, job["job_id"])
+        result["weave_url"] = weave_url
+        job["result"] = remember(result)
+        if AUTO_SECOND_LOOK and gpu.configured():
+            _auto_second_look(job)
         job["status"] = "done"
     except Exception as exc:
         log.exception("sweep %s failed", job["job_id"])
@@ -722,3 +754,29 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+def _auto_second_look(job):
+    """Cosmos Reason re-watches the top clips with a targeted question; its verdict re-decides each one."""
+    result = job["result"]
+    top = [c for c in result["conflicts"] if c["status"] != "rejected"][:AUTO_LOOK_COUNT]
+    if not top:
+        return
+    _step(job["job_id"], f"Cosmos Reason re-watching the top {len(top)} clip(s) with a targeted question")
+    started, confirmed, dropped, failed = time.monotonic(), 0, 0, 0
+    for conflict in top:
+        if time.monotonic() - started > AUTO_LOOK_SECONDS:
+            break
+        try:
+            look = second_look(conflict["id"])
+        except Exception as exc:
+            failed += 1
+            log.warning("automatic second look failed: %s", redact(str(exc)))
+            continue
+        if look and look.get("letter"):
+            confirmed += look["status"] == "verified"
+            dropped += look["status"] == "rejected"
+    fresh = summarize(result["conflicts"], result.get("cameras", []), result.get("mode", "live"))
+    result.update({k: fresh[k] for k in ("funnel", "hotspots", "conflicts")})
+    note = f", {failed} could not be checked" if failed else ""
+    _step(job["job_id"], f"Cosmos Reason re-watched {confirmed + dropped} clip(s): {confirmed} confirmed, {dropped} dropped{note}")

@@ -297,7 +297,9 @@
       stat('good', funnel.verified ?? 0, 'verified conflicts'),
       stat('bad', funnel.rejected ?? 0, 'false alarms filtered out'),
       stat('warn', funnel.unverified ?? 0, 'need a human look'));
-    $('sweep-note').textContent = `Cameras: ${(sweep.cameras || []).join(', ') || 'none'} · run ${sweep.generated_at || ''}` + (sweep.mode === 'fixture' ? ' · sample data, not live' : '');
+    const runNote = `Cameras: ${(sweep.cameras || []).join(', ') || 'none'} · run ${sweep.generated_at || ''}` + (sweep.mode === 'fixture' ? ' · sample data, not live' : '');
+    $('sweep-note').replaceChildren(runNote, ...(sweep.weave_url
+      ? [' · ', el('a', { href: sweep.weave_url, target: '_blank', rel: 'noopener', text: 'See this run in W&B Weave' })] : []));
 
     const typeLabel = {};
     conflicts.forEach((c) => { if (c.type) typeLabel[c.type.key] = c.type.label; });
@@ -320,11 +322,14 @@
     $('rejected').replaceChildren(...dropped.map((c) => card(c)));
     $('rejected-summary').textContent = `False alarms filtered out (${dropped.length}): what the checks dropped, and why`;
 
-    const judged = conflicts.filter((c) => c.status === 'verified' && c.id in state.labels);
-    const right = judged.filter((c) => state.labels[c.id]).length;
+    const judged = conflicts.filter((c) => c.id in state.labels);
+    const real = (list) => list.filter((c) => state.labels[c.id]).length;
+    const keptJudged = judged.filter((c) => c.status === 'verified');
+    const droppedJudged = judged.filter((c) => c.status === 'rejected');
     $('review-score').textContent = judged.length
-      ? `Your review: ${right} of ${judged.length} verified clips confirmed (${Math.round(100 * right / judged.length)}%)`
-      : 'Mark clips 👍 or 👎. Only approved clips go into a work order, and the score shows here.';
+      ? `Your review: search alone ${real(judged)} of ${judged.length} real · after the checks ${real(keptJudged)} of ${keptJudged.length} real · ` +
+        `filtered out ${droppedJudged.length - real(droppedJudged)} of ${droppedJudged.length} correctly`
+      : 'Mark clips 👍 or 👎, verified and filtered-out ones alike. Only approved clips go into a work order, and the score shows here.';
     $('publish').hidden = !state.features.publish;
   }
 
@@ -348,10 +353,21 @@
     const open311 = order.open311 || {}, attribute = open311.attribute || {};
     const line = (label, value) => value && el('tr', {}, el('th', { text: label }), el('td', { text: value }));
     const approve = el('button', { text: 'Approve draft', onclick: () => { approve.disabled = true; approve.textContent = 'Approved (not sent anywhere)'; } });
+    const statusChip = el('span', { class: 'chip warn', text: order.status || 'DRAFT' });
+    const ids = ((order.open311 || {}).attribute || {}).evidence || [];
+    const send = state.features.dispatch && el('button', { text: 'Approve and send to work-order queue', onclick: async () => {
+      send.disabled = true; send.textContent = 'Sending…';
+      try {
+        const sent = await call('api/workorder/send', { conflict_ids: ids.map((item) => item.conflict_id) });
+        send.textContent = `Sent to ${sent.sent_to} at ${new Date(sent.sent_at || Date.now()).toLocaleTimeString()}`;
+        statusChip.textContent = 'SENT'; statusChip.className = 'chip good';
+        approve.disabled = true; approve.textContent = 'Approved';
+      } catch (err) { send.disabled = false; send.textContent = 'Approve and send to work-order queue'; setStatus('Send failed: ' + err.message, true); }
+    } });
     const evidence = attribute.evidence || [];
     const showClip = (id) => { const node = document.getElementById('c-' + id); if (node) node.scrollIntoView({ behavior: 'smooth', block: 'center' }); };
     $('workorder').replaceChildren(
-      el('div', { class: 'row' }, el('h3', { style: 'margin:0', text: order.id }), el('span', { class: 'chip warn', text: order.status || 'DRAFT' }),
+      el('div', { class: 'row' }, el('h3', { style: 'margin:0', text: order.id }), statusChip,
         el('span', { class: 'muted', text: `for ${spot.label}; ${note}` })),
       open311.description && el('p', { style: 'margin:10px 0 0', text: open311.description }),
       el('table', { style: 'margin:10px 0' }, el('tbody', {},
@@ -364,8 +380,10 @@
       el('ol', { class: 'evidence' }, evidence.map((item) => el('li', {},
         el('b', { text: item.where }), `: ${item.type}, severity ${item.severity}/3. ${item.reason} `,
         el('button', { class: 'alt small', text: 'Show clip', onclick: () => showClip(item.conflict_id) })))),
-      el('p', { class: 'muted', style: 'margin:0 0 10px', text: 'Drafted by ViZ Agent from video evidence. Not sent anywhere. Needs engineer approval.' }),
-      el('div', { class: 'row' }, approve,
+      el('p', { class: 'muted', style: 'margin:0 0 10px', text: state.features.dispatch
+        ? 'Drafted by ViZ Agent from video evidence. It goes to the work-order queue only when an engineer presses Send.'
+        : 'Drafted by ViZ Agent from video evidence. Not sent anywhere. Needs engineer approval.' }),
+      el('div', { class: 'row' }, approve, send,
         el('button', { class: 'alt', text: 'Copy brief', onclick: (event) => copyText(order.markdown || '', event.target) })),
       el('details', { style: 'margin-top:10px' }, el('summary', { text: 'Brief as Markdown (what Copy brief copies)' }), el('pre', { text: order.markdown || '' })),
       el('details', {}, el('summary', { text: 'Open311 service request (JSON)' }), el('pre', { text: JSON.stringify(open311, null, 2) })));

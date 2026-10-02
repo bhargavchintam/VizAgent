@@ -38,6 +38,13 @@ def configured():
     return bool(os.environ.get("WANDB_API_KEY"))
 
 
+_tracing = {"on": False}
+
+
+def tracing_on():
+    return _tracing["on"]
+
+
 def init_tracing():
     """Start Weave tracing if W&B is configured. Returns True when tracing is on."""
     project = wandb_project()
@@ -47,6 +54,7 @@ def init_tracing():
         import weave
 
         weave.init(project)
+        _tracing["on"] = True
         return True
     except Exception as exc:  # never let tracing take the app down
         log.warning("Weave tracing disabled: %s", exc)

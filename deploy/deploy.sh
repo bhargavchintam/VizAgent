@@ -56,6 +56,7 @@ kubectl -n "$NS" create secret generic "${APP_NAME}-secrets" \
   --from-literal=WANDB_PROJECT="${WANDB_PROJECT:-}" \
   --from-literal=COSMOS3_REASON_URL="$COSMOS_URL" \
   --from-literal=GPU_BEARER_TOKEN="${GPU_BEARER_TOKEN:-}" \
+  --from-literal=DISPATCH_WEBHOOK_URL="${DISPATCH_WEBHOOK_URL:-}" \
   --dry-run=client -o yaml | kubectl apply -f -
 
 # 3. Deployment + Service + Ingress (path /app on the team host, prefix stripped)
@@ -98,6 +99,8 @@ spec:
           value: "${VIZ_CONTEXT:-1}"
         - name: VIZ_REINGEST
           value: "${VIZ_REINGEST:-0}"
+        - name: VIZ_AUTO_SECOND_LOOK
+          value: "${VIZ_AUTO_SECOND_LOOK:-0}"
         envFrom:
         - secretRef:
             name: ${APP_NAME}-secrets

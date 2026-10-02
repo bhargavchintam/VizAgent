@@ -25,8 +25,9 @@ VIZ_MODE=fixture python app/main.py      # http://localhost:8080/
 | `GET /api/sweep/{job_id}` | | `Job`. `job_id` may be `latest` |
 | `GET /api/snapshot/{name}` | | `Sweep`. `name` is `before` or `after`; 404 if not saved |
 | `POST /api/workorder` | `{conflict_ids: [str]}` | `WorkOrder` |
+| `POST /api/workorder/send` | `{conflict_ids: [str]}` | the `WorkOrder` with `status: "SENT"`, `sent_to` (`discord`, `slack` or `webhook`), `sent_at`: posts the engineer-approved ticket to the team's work-order queue (only if `features.dispatch`) |
 | `POST /api/second-look` | `{conflict_id}` | `{letter, trace, agrees, status, conflict}`; `conflict` is the updated Conflict (only if `features.cosmos`) |
-| `POST /api/publish` | `{conflict_ids: [str], labels?: {id: bool}}` | `{url, rows, precision, eval_url}`; `precision` is approved / labelled, or null; `eval_url` links the human review logged as a Weave evaluation, or null (only if `features.publish`) |
+| `POST /api/publish` | `{conflict_ids: [str], labels?: {id: bool}}` | `{url, rows, precision, eval_url, review}`; `review` is `{search_only: {real, total}, after_checks: {real, total}, filtered_out: {false_alarms, total}}`; `precision` is approved / labelled, or null; `eval_url` links the human review logged as a Weave evaluation, or null (only if `features.publish`) |
 | `POST /api/watch` | `{on: bool}` | `{on}` (only if `features.watch`) |
 | `GET /api/alerts?since=N` | | `{alerts: [Conflict], cursor: N, on}`; poll with the last `cursor` (only if `features.watch`) |
 | `GET /api/context?conflict_id=` | | `{prev, this, next}`, each `{source, start_sec}` or null: the clips just before and after (only if `features.context`) |
@@ -36,7 +37,7 @@ VIZ_MODE=fixture python app/main.py      # http://localhost:8080/
 | `POST /api/search`, `POST /api/ask` | unchanged | unchanged (plain search, for the before/after comparison) |
 | `GET /api/stream?source=` | | the clip, seekable. Use `conflict.source`, URL-encoded |
 
-`features` is `{cosmos, publish, watch, context, reingest}` (all bool). Show a feature's button only when its flag is true;
+`features` is `{cosmos, publish, watch, context, reingest, dispatch}` (all bool). Show a feature's button only when its flag is true;
 a route whose feature is off returns 503. In fixture mode every extra except `reingest` is on and returns a canned answer.
 `mode` is `live` or `fixture`.
 
@@ -55,6 +56,7 @@ Job = {
 
 Sweep = {
   generated_at: ISO time, mode, cameras: [str],
+  weave_url,               // link to this sweep's trace in W&B Weave, or null when tracing is off
   funnel: {candidates, verified, rejected, unverified},
   hotspots: [Hotspot],     // ranked, worst first
   conflicts: [Conflict]    // every candidate: verified first, then unverified, then rejected
@@ -113,6 +115,8 @@ Causes and the fix each one picks (from `app/taxonomy.py`):
 | env | `LLM_MODEL` | `nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B` (fallback `openai/gpt-oss-20b` is built in) |
 | Secret | `COSMOS3_REASON_URL`, `GPU_BEARER_TOKEN` | from `/config/<team>.config`; without the URL the second look is off |
 | env (optional) | `VIZ_COSMOS`, `VIZ_PUBLISH`, `VIZ_WATCH`, `VIZ_CONTEXT` | default on; `0` turns one off |
+| Secret | `DISPATCH_WEBHOOK_URL` | a Discord or Slack channel webhook for the work-order queue; set it on the VM before deploying (it is a secret: never commit it) |
+| env | `VIZ_AUTO_SECOND_LOOK` | `0` by default; `1` makes Cosmos Reason re-watch the top 3 clips after each sweep (only once the pod can reach the GPU) |
 | env | `VIZ_REINGEST` | `0` by default; `1` only after testing (it rewrites the team's index) |
 | Ingress annotation | `nginx.ingress.kubernetes.io/proxy-read-timeout` | `"300"` (second look can take a minute) |
 
