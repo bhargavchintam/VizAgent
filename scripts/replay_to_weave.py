@@ -15,7 +15,9 @@ The input is either a saved job (GET /api/sweep/{id}, with "steps" and "result")
 """
 
 import argparse
+import getpass
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -60,6 +62,10 @@ def main():
         for step in steps:
             print(f"  [{step['t']}s] {step['text']}")
         return
+
+    if not os.environ.get("WANDB_API_KEY"):
+        # Typed by you, hidden, kept only in this process: never printed, saved or sent elsewhere.
+        os.environ["WANDB_API_KEY"] = getpass.getpass("Paste your W&B API key (input is hidden), then press Enter: ").strip()
 
     import weave
 
