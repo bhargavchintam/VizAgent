@@ -21,6 +21,10 @@
     button.small { padding: 5px 10px; font-size: 13px; }
     button:disabled { opacity: .5; cursor: default; }
     button[aria-pressed="true"] { outline: 2px solid var(--accent); }
+    button.yes[aria-pressed="true"] { background: var(--good); color: #06121f; outline: 0; font-weight: 700; }
+    button.no[aria-pressed="true"] { background: var(--bad); color: #06121f; outline: 0; font-weight: 700; }
+    .evidence { margin: 6px 0 10px; padding-left: 22px; }
+    .evidence li { margin: 8px 0; }
     input { padding: 9px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--text); }
     .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
     .chip { display: inline-block; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line); font-size: 12px; color: var(--muted); white-space: nowrap; }
@@ -45,7 +49,7 @@
     .stat.good { border-color: var(--good); } .stat.warn { border-color: var(--warn); } .stat.bad { border-color: var(--bad); }
     table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 10px; overflow: hidden; }
     th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 14px; }
-    th { color: var(--muted); font-weight: 500; }
+    th { color: var(--muted); font-weight: 500; white-space: nowrap; }
     tr:last-child td { border-bottom: 0; }
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 12px; }
     .card { background: var(--card); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; animation: arrive .5s ease-out; }
@@ -182,15 +186,15 @@
   // ---- clip cards ----
 
   function thumbs(id, store, storeKey, onChange) {
-    const make = (value, text) => el('button', {
-      class: 'alt small', 'aria-pressed': String(store[id] === value), text,
+    const make = (value, text, kind) => el('button', {
+      class: 'alt small ' + kind, 'aria-pressed': String(store[id] === value), text,
       onclick: () => {
         if (store[id] === value) delete store[id]; else store[id] = value;
         save(storeKey, store);
         onChange();
       },
     });
-    return [make(true, '👍 Correct'), make(false, '👎 Wrong')];
+    return [make(true, '👍 Correct', 'yes'), make(false, '👎 Wrong', 'no')];
   }
 
   function signalChips(conflict) {
@@ -344,18 +348,26 @@
     const open311 = order.open311 || {}, attribute = open311.attribute || {};
     const line = (label, value) => value && el('tr', {}, el('th', { text: label }), el('td', { text: value }));
     const approve = el('button', { text: 'Approve draft', onclick: () => { approve.disabled = true; approve.textContent = 'Approved (not sent anywhere)'; } });
+    const evidence = attribute.evidence || [];
+    const showClip = (id) => { const node = document.getElementById('c-' + id); if (node) node.scrollIntoView({ behavior: 'smooth', block: 'center' }); };
     $('workorder').replaceChildren(
       el('div', { class: 'row' }, el('h3', { style: 'margin:0', text: order.id }), el('span', { class: 'chip warn', text: order.status || 'DRAFT' }),
         el('span', { class: 'muted', text: `for ${spot.label}; ${note}` })),
+      open311.description && el('p', { style: 'margin:10px 0 0', text: open311.description }),
       el('table', { style: 'margin:10px 0' }, el('tbody', {},
         line('Location', open311.address_string), line('Priority', attribute.priority),
         line('Physical cause', order.cause && String(order.cause).replace(/_/g, ' ')),
         line('Recommended fix', [order.countermeasure, attribute.countermeasure_source && `(${attribute.countermeasure_source})`].filter(Boolean).join(' ')),
         line('Expected effect', order.expected_effect),
         line('Alternatives', (attribute.alternatives || []).join('; ')))),
-      el('pre', { text: order.markdown || '' }),
+      el('h3', { style: 'margin:14px 0 0;font-size:15px', text: `Evidence: ${evidence.length} clip${evidence.length === 1 ? '' : 's'}` }),
+      el('ol', { class: 'evidence' }, evidence.map((item) => el('li', {},
+        el('b', { text: item.where }), `: ${item.type}, severity ${item.severity}/3. ${item.reason} `,
+        el('button', { class: 'alt small', text: 'Show clip', onclick: () => showClip(item.conflict_id) })))),
+      el('p', { class: 'muted', style: 'margin:0 0 10px', text: 'Drafted by ViZ Agent from video evidence. Not sent anywhere. Needs engineer approval.' }),
       el('div', { class: 'row' }, approve,
         el('button', { class: 'alt', text: 'Copy brief', onclick: (event) => copyText(order.markdown || '', event.target) })),
+      el('details', { style: 'margin-top:10px' }, el('summary', { text: 'Brief as Markdown (what Copy brief copies)' }), el('pre', { text: order.markdown || '' })),
       el('details', {}, el('summary', { text: 'Open311 service request (JSON)' }), el('pre', { text: JSON.stringify(open311, null, 2) })));
     $('workorder-section').hidden = false;
     $('workorder-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
