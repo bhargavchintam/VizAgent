@@ -32,6 +32,10 @@ CAMERA_PREFIXES = ("pie_cam", "sf_streets_cam")
 DEFAULT_CAMERAS = ["pie_cam-3"]
 MIN_SIMILARITY = float(os.environ.get("VIZ_MIN_SIMILARITY", "0.3"))
 MAX_CANDIDATES = 60
+# The team's VSS backend has a 4 GiB memory limit and was OOMKilled under 4 parallel searches
+# plus 8 parallel detection calls, so keep the load small.
+SEARCH_WORKERS = int(os.environ.get("VIZ_SEARCH_WORKERS", "2"))
+CHECK_WORKERS = int(os.environ.get("VIZ_CHECK_WORKERS", "4"))
 CAPTION_LIMIT = 600
 PEOPLE = {"person", "pedestrian"}
 VEHICLES = {"car", "truck", "bus", "motorcycle", "bicycle", "van", "vehicle"}
@@ -126,7 +130,7 @@ def collect_candidates(cameras, top_k):
         for query in ctype["queries"][view_of(camera)]
     ]
     best, last_error = {}, None
-    with llm.ThreadPoolExecutor(max_workers=4) as pool:
+    with llm.ThreadPoolExecutor(max_workers=SEARCH_WORKERS) as pool:
         pending = [
             (camera, ctype, pool.submit(find_candidates, camera, ctype["key"], query, top_k))
             for camera, ctype, query in searches
@@ -510,7 +514,7 @@ def run_sweep(cameras=None, top_k=10, job_id=None):
     candidates = collect_candidates(cameras, top_k)
     _step(job_id, f"Search found {len(candidates)} candidate clips")
     _step(job_id, "Checking each clip: saved Cosmos verdict, object detector, severity grade")
-    with llm.ThreadPoolExecutor(max_workers=8) as pool:
+    with llm.ThreadPoolExecutor(max_workers=CHECK_WORKERS) as pool:
         conflicts = list(pool.map(_assess, candidates))
     result = summarize(conflicts, cameras)
     funnel = result["funnel"]
@@ -662,7 +666,7 @@ def publish(conflict_ids, labels=None):
 def _watch_pass():
     """Assess only clips not seen before; verified ones become alerts."""
     fresh = [c for c in collect_candidates(discover_cameras(), 10) if c["id"] not in _watch["seen"]]
-    with llm.ThreadPoolExecutor(max_workers=8) as pool:
+    with llm.ThreadPoolExecutor(max_workers=CHECK_WORKERS) as pool:
         conflicts = list(pool.map(_assess, fresh))
     _watch["seen"].update(c["id"] for c in conflicts)
     remember({"conflicts": conflicts})
