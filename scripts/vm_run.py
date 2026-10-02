@@ -134,10 +134,17 @@ def pick_chunks(per_dashcam=2, max_fixed=2):
     import sweep
     import taxonomy
 
+    # Reuse the hits the 'before' step saved, so the backend is not searched all over again.
+    saved = json.loads(RAW_BEFORE.read_text(encoding="utf-8")) if RAW_BEFORE.exists() else None
     picks, fixed_left = [], max_fixed
-    for camera in sweep.discover_cameras():
+    for camera in sorted({d["camera"] for d in saved}) if saved else sweep.discover_cameras():
         view, scores = sweep.view_of(camera), {}
-        for ctype in taxonomy.CONFLICT_TYPES:
+        for dump in saved or []:
+            if dump["camera"] == camera:
+                for hit in dump["results"]:
+                    if hit.get("original_video"):
+                        scores[hit["original_video"]] = scores.get(hit["original_video"], 0) + 1
+        for ctype in [] if saved else taxonomy.CONFLICT_TYPES:
             for query in ctype["queries"][view]:
                 found = sweep.client.search(
                     query, top_k=30, min_similarity=sweep.MIN_SIMILARITY, llm_top_n=1,
