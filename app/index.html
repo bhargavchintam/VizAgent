@@ -16,7 +16,7 @@
     h2 { margin: 28px 0 10px; font-size: 18px; }
     .sub { color: var(--muted); margin: 0 0 12px; max-width: 70ch; }
     .muted { color: var(--muted); }
-    button { padding: 9px 14px; border-radius: 8px; border: 0; background: var(--accent); color: #06121f; font-weight: 600; cursor: pointer; }
+    button { padding: 9px 14px; border-radius: 8px; border: 0; background: var(--accent); color: #06121f; font-weight: 600; cursor: pointer; white-space: nowrap; }
     button.alt { background: var(--line); color: var(--text); font-weight: 500; }
     button.small { padding: 5px 10px; font-size: 13px; }
     button:disabled { opacity: .5; cursor: default; }
@@ -27,11 +27,20 @@
     .chip.good { border-color: var(--good); color: var(--good); }
     .chip.warn { border-color: var(--warn); color: var(--warn); }
     .chip.bad { border-color: var(--bad); color: var(--bad); }
-    #status { color: var(--muted); }
+    #status { color: var(--muted); font-weight: 600; }
     #status.bad { color: var(--bad); }
+    #status.good { color: var(--good); }
+    #status.busy { color: var(--warn); }
+    #status.busy::before { content: ''; display: inline-block; width: 12px; height: 12px; margin-right: 8px; vertical-align: -1px;
+      border: 2px solid var(--warn); border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes arrive { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    .banner { background: #2a2413; border: 1px solid var(--warn); color: var(--warn); border-radius: 8px; padding: 8px 12px; font-size: 14px; }
+    .novideo { display: flex; align-items: center; justify-content: center; aspect-ratio: 16 / 9; border-radius: 6px;
+      background: #0b101a; border: 1px dashed var(--line); color: var(--muted); font-size: 13px; }
     #steps { margin: 10px 0 0; padding-left: 22px; color: var(--muted); font-size: 14px; }
     .funnel { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
-    .stat { background: var(--card); border-radius: 10px; padding: 12px 14px; border-left: 4px solid var(--off); }
+    .stat { background: var(--card); border-radius: 10px; padding: 12px 14px; border-left: 4px solid var(--off); animation: arrive .5s ease-out; }
     .stat b { display: block; font-size: 30px; line-height: 1.1; }
     .stat.good { border-color: var(--good); } .stat.warn { border-color: var(--warn); } .stat.bad { border-color: var(--bad); }
     table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 10px; overflow: hidden; }
@@ -39,7 +48,7 @@
     th { color: var(--muted); font-weight: 500; }
     tr:last-child td { border-bottom: 0; }
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 12px; }
-    .card { background: var(--card); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .card { background: var(--card); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; animation: arrive .5s ease-out; }
     .card video { width: 100%; border-radius: 6px; background: #000; aspect-ratio: 16 / 9; }
     .card h3 { margin: 0; font-size: 15px; }
     .card .meta { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
@@ -156,8 +165,14 @@
     return data;
   }
 
-  function setStatus(text, bad) { $('status').textContent = text; $('status').className = bad ? 'bad' : ''; }
+  // kind: true or 'bad' for an error, 'good' for success, 'busy' while working
+  function setStatus(text, kind) { $('status').textContent = text; $('status').className = kind === true ? 'bad' : kind || ''; }
   const clipUrl = (source) => BASE + 'api/stream?source=' + encodeURIComponent(source || '');
+  // Sample mode has no video backend, so say so instead of showing a dead player.
+  const clip = (source) => state.mode === 'fixture'
+    ? el('div', { class: 'novideo', text: 'Video plays in the live app' })
+    : el('video', { controls: true, preload: 'none', src: clipUrl(source) });
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   const fileName = (uri) => String(uri || '').split('/').pop();
   function clock(seconds) {
     if (typeof seconds !== 'number') return null;
@@ -220,10 +235,10 @@
       actions.push(el('button', { class: 'alt small', text: 'Before / after', onclick: (event) => showContext(conflict, extra, event.target) }));
     }
     return el('div', { class: 'card', id: opts.readOnly ? null : 'c-' + conflict.id },
-      el('div', { class: 'row' },
-        el('h3', { text: (conflict.type || {}).label || 'Conflict' }), statusChip,
+      el('h3', { text: (conflict.type || {}).label || 'Conflict' }),
+      el('div', { class: 'row' }, statusChip,
         status !== 'rejected' && el('span', { class: 'chip', text: `severity ${conflict.severity}/3 (${SEVERITY[conflict.severity] || '?'})` })),
-      el('video', { controls: true, preload: 'none', src: clipUrl(conflict.source) }),
+      clip(conflict.source),
       el('div', { class: 'meta', text: where }),
       el('div', { class: 'row' }, signalChips(conflict)),
       el('div', { text: conflict.reason || '' }),
@@ -253,10 +268,10 @@
     button.disabled = true;
     try {
       const around = await call('api/context?conflict_id=' + encodeURIComponent(conflict.id));
-      const clip = (label, item) => item
-        ? el('div', {}, el('div', { class: 'meta', text: label }), el('video', { controls: true, preload: 'none', src: clipUrl(item.source) }))
+      const near = (label, item) => item
+        ? el('div', {}, el('div', { class: 'meta', text: label }), clip(item.source))
         : el('div', { class: 'meta', text: label + ': not in the index' });
-      target.replaceChildren(el('div', { class: 'context' }, clip('Clip before', around.prev), clip('Clip after', around.next)));
+      target.replaceChildren(el('div', { class: 'context' }, near('Clip before', around.prev), near('Clip after', around.next)));
     } catch (err) {
       target.replaceChildren(el('div', { class: 'meta', text: 'Could not load the clips around this one: ' + err.message }));
       button.disabled = false;
@@ -359,21 +374,35 @@
     $('steps').replaceChildren(...steps.map((step) => el('li', { text: `${step.text} (${step.t}s)` })));
   }
 
-  async function follow(jobId) {
+  function finished(sweep) {
+    const funnel = sweep.funnel || {};
+    return `Sweep finished at ${new Date().toLocaleTimeString()}: ${funnel.candidates ?? 0} clips checked, ${funnel.verified ?? 0} verified, ` +
+      `${funnel.rejected ?? 0} filtered out, ${funnel.unverified ?? 0} need review.`;
+  }
+
+  async function follow(jobId, startedAt) {
     for (;;) {
       const job = await call('api/sweep/' + jobId);
       renderSteps(job.steps || []);
-      if (job.status === 'done') { setStatus('Sweep finished.'); render(job.result); loadCompare(); return; }
+      if (job.status === 'done') {
+        // A replayed sweep returns at once; keep the working state on screen long enough to see.
+        await sleep(Math.max(0, 900 - (Date.now() - (startedAt || 0))));
+        render(job.result); setStatus(finished(job.result), 'good'); loadCompare();
+        return;
+      }
       if (job.status === 'error') throw new Error(job.error || 'the sweep failed');
-      setStatus('Sweeping…');
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      setStatus('Sweeping: searching the cameras and checking each clip', 'busy');
+      await sleep(1500);
     }
   }
 
   async function runSweep() {
-    $('run').disabled = true; $('steps').replaceChildren(); setStatus('Starting…');
-    try { const started = await call('api/sweep', {}); await follow(started.job_id); }
-    catch (err) { setStatus('Sweep failed: ' + err.message, true); }
+    const startedAt = Date.now();
+    $('run').disabled = true; $('steps').replaceChildren();
+    $('results').hidden = true; $('workorder-section').hidden = true;
+    setStatus('Sweeping: searching the cameras and checking each clip', 'busy');
+    try { const started = await call('api/sweep', {}); await follow(started.job_id, startedAt); }
+    catch (err) { setStatus('Sweep failed: ' + err.message, true); $('results').hidden = !state.sweep; }
     $('run').disabled = false;
   }
 
@@ -449,7 +478,7 @@
       };
       const draw = () => {
         $('plain').replaceChildren(...hits.map((hit) => el('div', { class: 'card' },
-          el('video', { controls: true, preload: 'none', src: clipUrl(hit.source) }),
+          clip(hit.source),
           el('div', { class: 'meta', text: `match ${Number(hit.similarity_score || 0).toFixed(3)} · ${fileName(hit.source)}` }),
           el('div', { style: 'font-size:14px', text: String(hit.reasoning_content || '').slice(0, 400) }),
           el('div', { class: 'row' }, thumbs(hit.source, state.plainLabels, 'viz-plain-labels', () => { draw(); })))));
@@ -467,13 +496,19 @@
     try {
       const health = await call('health');
       state.features = health.features || {};
+      state.mode = health.mode;
       const chip = (ok, text) => el('span', { class: 'chip ' + (ok ? 'good' : 'warn'), text });
-      $('chips').replaceChildren(
-        chip(health.mode === 'live', health.mode === 'live' ? 'live data' : 'sample data'),
-        chip(health.vss_configured, health.vss_configured ? 'video index connected' : 'video index not connected'),
-        chip(health.llm_configured, health.llm_configured ? 'W&B inference on' : 'W&B inference off'),
-        chip(health.tracing, health.tracing ? 'Weave tracing on' : 'Weave tracing off'),
-        chip(state.features.cosmos, state.features.cosmos ? 'Cosmos second look on' : 'Cosmos second look off'));
+      if (health.mode === 'fixture') {
+        $('chips').replaceChildren(el('div', { class: 'banner',
+          text: 'Sample mode: this replays a saved example sweep. Nothing here is live, a sweep finishes at once, and videos play only in the live app.' }));
+      } else {
+        $('chips').replaceChildren(
+          chip(true, 'live data'),
+          chip(health.vss_configured, health.vss_configured ? 'video index connected' : 'video index not connected'),
+          chip(health.llm_configured, health.llm_configured ? 'W&B inference on' : 'W&B inference off'),
+          chip(health.tracing, health.tracing ? 'Weave tracing on' : 'Weave tracing off'),
+          chip(state.features.cosmos, state.features.cosmos ? 'Cosmos second look on' : 'Cosmos second look off'));
+      }
       $('watch').hidden = !state.features.watch;
       if (state.features.watch) pollAlerts();
     } catch (err) { setStatus('Could not reach the app: ' + err.message, true); }
@@ -481,7 +516,7 @@
     try {  // show the most recent sweep, or the saved one, so the page is never empty
       const job = await call('api/sweep/latest');
       renderSteps(job.steps || []);
-      if (job.status === 'done') render(job.result);
+      if (job.status === 'done') { render(job.result); setStatus('Showing the last sweep. Press Run sweep to run it again.'); }
       else if (job.status === 'running') { $('run').disabled = true; follow(job.job_id).catch((err) => setStatus('Sweep failed: ' + err.message, true)).then(() => { $('run').disabled = false; }); }
     } catch (_) {
       const saved = await call('api/snapshot/after').catch(() => null);
