@@ -78,7 +78,7 @@ def _step(job_id, text):
 def discover_cameras():
     """Street and dashcam cameras present in the index, so SF cameras join in once they are loaded."""
     try:
-        values = client.metadata_values("camera_id", limit=200).get("values", [])
+        values = client.metadata_values("camera_id").get("values", [])
     except Exception as exc:
         log.warning("camera discovery failed: %s", redact(str(exc)))
         values = []
@@ -440,6 +440,14 @@ def _conflict(candidate, stored, yolo, cosmos, status, reject_reason, severity, 
 # ---- 4. rank ----
 
 
+def _hotspot_label(key, conflict):
+    if conflict["view"] == "fixed":
+        return f"Street camera {key}"
+    if key == conflict["camera_id"]:  # the index gave no parent video, so the whole dashcam is one group
+        return f"Dashcam {key}"
+    return f"Drive {str(key).rsplit('/', 1)[-1]}"
+
+
 def rank(conflicts):
     """Group verified conflicts into hotspots: one per fixed camera, one per dashcam drive."""
     hotspots = {}
@@ -452,7 +460,7 @@ def rank(conflicts):
             key,
             {
                 "key": key,
-                "label": f"Street camera {key}" if fixed else f"Drive {str(key).rsplit('/', 1)[-1]}",
+                "label": _hotspot_label(key, conflict),
                 "kind": "camera" if fixed else "drive",
                 "camera_id": conflict["camera_id"],
                 "score": 0,
