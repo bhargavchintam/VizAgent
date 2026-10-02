@@ -1,5 +1,10 @@
 # ViZ Agent API contract
 
+> **Who is building what (updated 1:58 PM Pacific, Oct 2):** `app/index.html` is being built in SripV's
+> session against this contract; a first version lands on `main` by about 2:20 PM. Please don't write
+> the page in parallel. Engine extras, `deploy/deploy.sh` and the VM run stay with Bhargav's session.
+> The VM side runs in one command: `git pull && python scripts/vm_run.py`.
+
 The contract between the engine (`app/*.py`) and the page (`app/index.html`).
 All paths are relative to the page, because Ingress serves the app under `/app` and strips the prefix.
 Build URLs with `new URL('api/…', location.href)`.
