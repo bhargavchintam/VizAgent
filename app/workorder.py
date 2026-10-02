@@ -42,8 +42,13 @@ def draft(conflicts):
     counts = Counter(c["type"]["key"] for c in conflicts)
     type_key = max(counts, key=lambda k: (counts[k], max(c["severity"] for c in conflicts if c["type"]["key"] == k)))
     ctype = taxonomy.TYPE_BY_KEY.get(type_key) or {"label": type_key, "countermeasures": []}
-    fixes = ctype["countermeasures"]
+    # The physical cause Cosmos recorded at re-ingest picks the fix; fall back to the conflict type.
+    causes = Counter(((c.get("signals") or {}).get("stored") or {}).get("cause") for c in conflicts)
+    causes.pop(None, None)
+    cause = causes.most_common(1)[0][0] if causes else None
+    fixes = taxonomy.fixes_for(type_key, cause)
     fix = fixes[0] if fixes else {"name": "Site review by a traffic engineer", "source": "", "why": ""}
+    effect = taxonomy.EFFECTS.get(fix["name"])
     priority = _priority(conflicts)
     address = _where(top) if top.get("view") == "fixed" else f"{len({c.get('original_video') for c in conflicts})} dashcam drive(s), see evidence"
 
@@ -72,8 +77,10 @@ def draft(conflicts):
         f"- **Priority:** {priority}",
         f"- **Location:** {address}",
         f"- **Pattern:** {len(conflicts)} verified conflict(s), most often {ctype['label'].lower()}",
+        f"- **Physical cause (Cosmos Reason):** {taxonomy.CAUSES[cause]}" if cause else "",
         f"- **Recommended fix:** {fix['name']}" + (f" ({fix['source']})" if fix["source"] else ""),
         f"- **Why this fix:** {fix['why']}" if fix["why"] else "",
+        f"- **Expected effect:** {effect}" if effect else "",
     ]
     if len(fixes) > 1:
         lines.append("- **Alternatives:** " + "; ".join(f["name"] for f in fixes[1:]))
@@ -84,6 +91,9 @@ def draft(conflicts):
     return {
         "id": order_id,
         "status": "DRAFT",
+        "cause": cause,
+        "countermeasure": fix["name"],
+        "expected_effect": effect,
         "open311": {
             "service_code": f"VZ-{type_key}",  # our own mapping, not a city's published code list
             "service_name": f"Street safety: {ctype['label']}",
@@ -95,6 +105,8 @@ def draft(conflicts):
                 "conflict_type": type_key,
                 "countermeasure": fix["name"],
                 "countermeasure_source": fix["source"],
+                "expected_effect": effect,
+                "cause": cause,
                 "alternatives": [f["name"] for f in fixes[1:]],
                 "evidence": evidence,
             },

@@ -19,9 +19,29 @@ REINGEST_PROMPT = (
     "(B) conflict: pedestrian or cyclist in the path of a moving vehicle, no evasive action; "
     "(C) normal: vehicle waits or pedestrian has clear space; "
     "(D) none. "
-    "Give a one-sentence physical reason. End with the line VERDICT: A, B, C or D."
+    "Give a one-sentence physical reason. "
+    "Then a line CAUSE: blocked_view, turning_vehicle, no_crosswalk, did_not_slow or none. "
+    "End with the line VERDICT: A, B, C or D."
 )
 assert len(REINGEST_PROMPT) <= 800
+
+# The physical reason Cosmos writes on the CAUSE line. The cause, more than the conflict
+# type, decides which fix a city engineer should try first.
+CAUSES = {
+    "blocked_view": "a parked or stopped vehicle hid the pedestrian or the driver's view",
+    "turning_vehicle": "a turning vehicle crossed the pedestrian's path",
+    "no_crosswalk": "the pedestrian crossed where there is no crosswalk",
+    "did_not_slow": "the vehicle did not slow down for the pedestrian",
+}
+
+# Crash-reduction figures quoted from FHWA's Proven Safety Countermeasures pages.
+EFFECTS = {
+    "Leading pedestrian interval": "can reduce related crashes by about 13% (FHWA)",
+    "Rectangular rapid flashing beacon at a marked mid-block crosswalk": "can reduce pedestrian crashes by up to 47% (FHWA)",
+    "Median and pedestrian refuge island": "can reduce pedestrian crashes by up to 56% in urban and suburban areas (FHWA)",
+    "Speed safety camera": "can reduce fatal and injury crashes by 20-37% (FHWA)",
+}
+
 
 FHWA = "FHWA Proven Safety Countermeasure"
 PRACTICE = "Common practice"
@@ -126,6 +146,36 @@ CONFLICT_TYPES = [
 ]
 
 TYPE_BY_KEY = {t["key"]: t for t in CONFLICT_TYPES}
+
+DAYLIGHTING = {
+    "name": "Daylighting: no parking within 20 ft of the crosswalk",
+    "source": "California AB 413; SF Street Safety Act calls for hardened daylighting",
+    "why": "removes the parked vehicles that hide people about to cross",
+}
+SPEED_CAMERA = {
+    "name": "Speed safety camera",
+    "source": FHWA + "; SF runs speed cameras at 33 sites under AB 645",
+    "why": "slows drivers on the approach so they can stop for people crossing",
+}
+
+
+def _fix(type_key, name):
+    return next(f for f in TYPE_BY_KEY[type_key]["countermeasures"] if f["name"] == name)
+
+
+CAUSE_FIXES = {
+    "blocked_view": [DAYLIGHTING, _fix("failure_to_yield", "Crosswalk visibility enhancements")],
+    "turning_vehicle": [_fix("turning_conflict", "Leading pedestrian interval"), _fix("turning_conflict", "Turn calming (hardened centerline or slow-turn wedge)")],
+    "no_crosswalk": TYPE_BY_KEY["midblock_crossing"]["countermeasures"],
+    "did_not_slow": [SPEED_CAMERA, _fix("failure_to_yield", "Leading pedestrian interval")],
+}
+
+
+def fixes_for(type_key, cause=None):
+    """Candidate fixes, best first: by physical cause when Cosmos recorded one, else by conflict type."""
+    if cause in CAUSE_FIXES:
+        return CAUSE_FIXES[cause]
+    return TYPE_BY_KEY.get(type_key, {}).get("countermeasures", [])
 
 GRADE_PROMPT = """You grade pedestrian-vehicle conflicts for a city traffic-safety engineer.
 You get one video clip's written description, the conflict type the search was looking for,

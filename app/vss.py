@@ -137,6 +137,15 @@ class VSSClient:
         """All indexed segments of one parent video."""
         return self._request("GET", "tools/segments", params={"original_video": original_video})
 
+    # ---- re-ingest (replaces the segment rows of the chosen chunk) ----
+
+    def reingest(self, original_video, custom_prompt, chunk_count=1):
+        body = {"original_video": original_video, "chunk_count": chunk_count, "custom_prompt": custom_prompt}
+        return self._request("POST", "dashboard/reingest", json=body)
+
+    def reingest_status(self, job_id):
+        return self._request("GET", f"dashboard/reingest/{job_id}")
+
     # ---- metadata / stats ----
 
     def metadata_schema(self):

@@ -36,7 +36,8 @@ def test_health_reports_unconfigured(client):
     assert body["ok"] is True
     assert (body["vss_configured"], body["llm_configured"], body["tracing"]) == (False, False, False)
     assert body["mode"] == "live"
-    assert set(body["features"]) == {"cosmos", "publish", "watch"}
+    assert set(body["features"]) == {"cosmos", "publish", "watch", "context", "reingest"}
+    assert not any(body["features"].values())  # nothing is configured, so every extra is off
 
 
 def test_index_served(client):
@@ -281,7 +282,7 @@ def test_second_look_overrides_and_extras_are_gated(client, monkeypatch):
     monkeypatch.setattr(sweep, "client", fake)
     monkeypatch.setattr(main, "vss", fake)
 
-    assert client.get("/health").json()["features"] == {"cosmos": False, "publish": False, "watch": True}
+    assert client.get("/health").json()["features"] == {"cosmos": False, "publish": False, "watch": True, "context": True, "reingest": False}
     assert client.post("/api/second-look", json={"conflict_id": "x"}).status_code == 503
     assert client.post("/api/publish", json={"conflict_ids": ["x"]}).status_code == 503
 

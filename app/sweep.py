@@ -161,13 +161,19 @@ _VERDICT_PATTERNS = (
 )
 
 
+# The CAUSE line, skipping the option list when a model echoes the prompt back.
+_CAUSE_PATTERN = re.compile(r"(?i:\bCAUSE)\s*[:=]\s*\(?([a-z_]+)\)?(?!\s*,)")
+
+
 def stored_signal(caption):
-    """The verdict letter Cosmos wrote into the description at re-ingest, if this clip was re-ingested."""
+    """The verdict letter and physical cause Cosmos wrote into the description at re-ingest, if any."""
+    causes = [c.lower() for c in _CAUSE_PATTERN.findall(caption or "") if c.lower() in taxonomy.CAUSES]
+    cause = causes[-1] if causes else None
     for pattern in _VERDICT_PATTERNS:
         letters = pattern.findall(caption or "")
         if letters:
-            return {"letter": letters[-1]}
-    return {"letter": None}
+            return {"letter": letters[-1], "cause": cause}
+    return {"letter": None, "cause": cause}
 
 
 _LABEL_KEYS = ("label", "class_name", "class", "name", "category")

@@ -1,191 +1,298 @@
 {
-  "generated_at": "2026-10-02T13:40:00-07:00",
-  "mode": "fixture",
-  "cameras": ["pie_cam-3", "sf_streets_cam-2"],
-  "funnel": {"candidates": 7, "verified": 4, "rejected": 2, "unverified": 1},
-  "hotspots": [
-    {
-      "key": "sf_streets_cam-2",
-      "label": "Street camera sf_streets_cam-2",
-      "kind": "camera",
-      "camera_id": "sf_streets_cam-2",
-      "score": 5,
-      "verified": 2,
-      "by_type": {"turning_conflict": 1, "failure_to_yield": 1},
-      "conflict_ids": ["a1f3c9d2", "b7e2a410"]
+ "generated_at": "2026-10-02T13:40:00-07:00",
+ "mode": "fixture",
+ "cameras": [
+  "pie_cam-3",
+  "sf_streets_cam-2"
+ ],
+ "funnel": {
+  "candidates": 7,
+  "verified": 4,
+  "rejected": 2,
+  "unverified": 1
+ },
+ "hotspots": [
+  {
+   "key": "sf_streets_cam-2",
+   "label": "Street camera sf_streets_cam-2",
+   "kind": "camera",
+   "camera_id": "sf_streets_cam-2",
+   "score": 5,
+   "verified": 2,
+   "by_type": {
+    "turning_conflict": 1,
+    "failure_to_yield": 1
+   },
+   "conflict_ids": [
+    "a1f3c9d2",
+    "b7e2a410"
+   ]
+  },
+  {
+   "key": "s3://sample-chunks/team-x/20260901_101500_pie-set03_chunk_0004.mp4",
+   "label": "Drive 20260901_101500_pie-set03_chunk_0004.mp4",
+   "kind": "drive",
+   "camera_id": "pie_cam-3",
+   "score": 4,
+   "verified": 2,
+   "by_type": {
+    "midblock_crossing": 1,
+    "failure_to_yield": 1
+   },
+   "conflict_ids": [
+    "c4d81e77",
+    "d90b3f15"
+   ]
+  }
+ ],
+ "conflicts": [
+  {
+   "id": "a1f3c9d2",
+   "source": "s3://sample-segments/team-x/sf-streets-2_chunk_0001_seg_0012.mp4",
+   "original_video": "s3://sample-chunks/team-x/20260902_090000_sf-streets-2_chunk_0001.mp4",
+   "camera_id": "sf_streets_cam-2",
+   "location": "san_francisco",
+   "view": "fixed",
+   "start_sec": 55.0,
+   "end_sec": 60.0,
+   "similarity": 0.64,
+   "caption": "A white SUV turns right across the crosswalk while a pedestrian with a backpack is mid-crossing; the pedestrian stops abruptly and steps back toward the curb. CAUSE: turning_vehicle\nVERDICT: A",
+   "type": {
+    "key": "turning_conflict",
+    "label": "Vehicle turning across a pedestrian's path"
+   },
+   "signals": {
+    "stored": {
+     "letter": "A",
+     "cause": "turning_vehicle"
     },
-    {
-      "key": "s3://sample-chunks/team-x/20260901_101500_pie-set03_chunk_0004.mp4",
-      "label": "Drive 20260901_101500_pie-set03_chunk_0004.mp4",
-      "kind": "drive",
-      "camera_id": "pie_cam-3",
-      "score": 4,
-      "verified": 2,
-      "by_type": {"midblock_crossing": 1, "failure_to_yield": 1},
-      "conflict_ids": ["c4d81e77", "d90b3f15"]
+    "yolo": {
+     "ok": true,
+     "person": true,
+     "vehicle": true,
+     "closeness": 0.81,
+     "note": "1 person, 2 vehicles"
+    },
+    "cosmos": {
+     "letter": "A",
+     "trace": "The SUV begins its turn while the pedestrian is in the crosswalk. The pedestrian halts and steps back, which is evasive action."
     }
-  ],
-  "conflicts": [
-    {
-      "id": "a1f3c9d2",
-      "source": "s3://sample-segments/team-x/sf-streets-2_chunk_0001_seg_0012.mp4",
-      "original_video": "s3://sample-chunks/team-x/20260902_090000_sf-streets-2_chunk_0001.mp4",
-      "camera_id": "sf_streets_cam-2",
-      "location": "san_francisco",
-      "view": "fixed",
-      "start_sec": 55.0,
-      "end_sec": 60.0,
-      "similarity": 0.64,
-      "caption": "A white SUV turns right across the crosswalk while a pedestrian with a backpack is mid-crossing; the pedestrian stops abruptly and steps back toward the curb. VERDICT: A",
-      "type": {"key": "turning_conflict", "label": "Vehicle turning across a pedestrian's path"},
-      "signals": {
-        "stored": {"letter": "A"},
-        "yolo": {"ok": true, "person": true, "vehicle": true, "closeness": 0.81, "note": "1 person, 2 vehicles"},
-        "cosmos": {"letter": "A", "trace": "The SUV begins its turn while the pedestrian is in the crosswalk. The pedestrian halts and steps back, which is evasive action."}
-      },
-      "status": "verified",
-      "reject_reason": null,
-      "severity": 3,
-      "reason": "Turning SUV forces a pedestrian in the crosswalk to step back.",
-      "hotspot_key": "sf_streets_cam-2"
+   },
+   "status": "verified",
+   "reject_reason": null,
+   "severity": 3,
+   "reason": "Turning SUV forces a pedestrian in the crosswalk to step back.",
+   "hotspot_key": "sf_streets_cam-2"
+  },
+  {
+   "id": "b7e2a410",
+   "source": "s3://sample-segments/team-x/sf-streets-2_chunk_0001_seg_0031.mp4",
+   "original_video": "s3://sample-chunks/team-x/20260902_090000_sf-streets-2_chunk_0001.mp4",
+   "camera_id": "sf_streets_cam-2",
+   "location": "san_francisco",
+   "view": "fixed",
+   "start_sec": 150.0,
+   "end_sec": 155.0,
+   "similarity": 0.58,
+   "caption": "Two pedestrians enter the crosswalk on a walk signal; a sedan continues through the crosswalk ahead of them without stopping. CAUSE: did_not_slow\nVERDICT: B",
+   "type": {
+    "key": "failure_to_yield",
+    "label": "Failure to yield at a crosswalk"
+   },
+   "signals": {
+    "stored": {
+     "letter": "B",
+     "cause": "did_not_slow"
     },
-    {
-      "id": "b7e2a410",
-      "source": "s3://sample-segments/team-x/sf-streets-2_chunk_0001_seg_0031.mp4",
-      "original_video": "s3://sample-chunks/team-x/20260902_090000_sf-streets-2_chunk_0001.mp4",
-      "camera_id": "sf_streets_cam-2",
-      "location": "san_francisco",
-      "view": "fixed",
-      "start_sec": 150.0,
-      "end_sec": 155.0,
-      "similarity": 0.58,
-      "caption": "Two pedestrians enter the crosswalk on a walk signal; a sedan continues through the crosswalk ahead of them without stopping. VERDICT: B",
-      "type": {"key": "failure_to_yield", "label": "Failure to yield at a crosswalk"},
-      "signals": {
-        "stored": {"letter": "B"},
-        "yolo": {"ok": true, "person": true, "vehicle": true, "closeness": 0.57, "note": "2 people, 1 vehicle"},
-        "cosmos": null
-      },
-      "status": "verified",
-      "reject_reason": null,
-      "severity": 2,
-      "reason": "Sedan drives through the crosswalk while pedestrians are entering it.",
-      "hotspot_key": "sf_streets_cam-2"
+    "yolo": {
+     "ok": true,
+     "person": true,
+     "vehicle": true,
+     "closeness": 0.57,
+     "note": "2 people, 1 vehicle"
     },
-    {
-      "id": "c4d81e77",
-      "source": "s3://sample-segments/team-x/pie-set03_chunk_0004_seg_0044.mp4",
-      "original_video": "s3://sample-chunks/team-x/20260901_101500_pie-set03_chunk_0004.mp4",
-      "camera_id": "pie_cam-3",
-      "location": "toronto",
-      "view": "dashcam",
-      "start_sec": 215.0,
-      "end_sec": 220.0,
-      "similarity": 0.66,
-      "caption": "The camera car is moving. A pedestrian steps off the curb between two parked cars and crosses mid-block directly ahead; the camera car slows. VERDICT: B",
-      "type": {"key": "midblock_crossing", "label": "Mid-block crossing in front of a moving vehicle"},
-      "signals": {
-        "stored": {"letter": "B"},
-        "yolo": {"ok": true, "person": true, "vehicle": true, "closeness": 0.46, "note": "1 person, 4 vehicles"},
-        "cosmos": null
-      },
-      "status": "verified",
-      "reject_reason": null,
-      "severity": 2,
-      "reason": "Pedestrian crosses mid-block in the path of the moving camera car.",
-      "hotspot_key": "s3://sample-chunks/team-x/20260901_101500_pie-set03_chunk_0004.mp4"
+    "cosmos": null
+   },
+   "status": "verified",
+   "reject_reason": null,
+   "severity": 2,
+   "reason": "Sedan drives through the crosswalk while pedestrians are entering it.",
+   "hotspot_key": "sf_streets_cam-2"
+  },
+  {
+   "id": "c4d81e77",
+   "source": "s3://sample-segments/team-x/pie-set03_chunk_0004_seg_0044.mp4",
+   "original_video": "s3://sample-chunks/team-x/20260901_101500_pie-set03_chunk_0004.mp4",
+   "camera_id": "pie_cam-3",
+   "location": "toronto",
+   "view": "dashcam",
+   "start_sec": 215.0,
+   "end_sec": 220.0,
+   "similarity": 0.66,
+   "caption": "The camera car is moving. A pedestrian steps off the curb between two parked cars and crosses mid-block directly ahead; the camera car slows. CAUSE: no_crosswalk\nVERDICT: B",
+   "type": {
+    "key": "midblock_crossing",
+    "label": "Mid-block crossing in front of a moving vehicle"
+   },
+   "signals": {
+    "stored": {
+     "letter": "B",
+     "cause": "no_crosswalk"
     },
-    {
-      "id": "d90b3f15",
-      "source": "s3://sample-segments/team-x/pie-set03_chunk_0004_seg_0071.mp4",
-      "original_video": "s3://sample-chunks/team-x/20260901_101500_pie-set03_chunk_0004.mp4",
-      "camera_id": "pie_cam-3",
-      "location": "toronto",
-      "view": "dashcam",
-      "start_sec": 350.0,
-      "end_sec": 355.0,
-      "similarity": 0.55,
-      "caption": "The camera car approaches a marked crosswalk while moving. A pedestrian is already crossing from the right; the car ahead does not stop and passes close in front of the pedestrian. VERDICT: B",
-      "type": {"key": "failure_to_yield", "label": "Failure to yield at a crosswalk"},
-      "signals": {
-        "stored": {"letter": "B"},
-        "yolo": {"ok": true, "person": true, "vehicle": true, "closeness": 0.38, "note": "1 person, 2 vehicles"},
-        "cosmos": null
-      },
-      "status": "verified",
-      "reject_reason": null,
-      "severity": 2,
-      "reason": "Car ahead passes in front of a pedestrian already in the crosswalk.",
-      "hotspot_key": "s3://sample-chunks/team-x/20260901_101500_pie-set03_chunk_0004.mp4"
+    "yolo": {
+     "ok": true,
+     "person": true,
+     "vehicle": true,
+     "closeness": 0.46,
+     "note": "1 person, 4 vehicles"
     },
-    {
-      "id": "e2a6c038",
-      "source": "s3://sample-segments/team-x/pie-set01_chunk_0002_seg_0009.mp4",
-      "original_video": "s3://sample-chunks/team-x/20260901_093000_pie-set01_chunk_0002.mp4",
-      "camera_id": "pie_cam-3",
-      "location": "toronto",
-      "view": "dashcam",
-      "start_sec": 40.0,
-      "end_sec": 45.0,
-      "similarity": 0.52,
-      "caption": "The camera car drives along a street with parked cars. A pedestrian walks on the sidewalk near the curb.",
-      "type": {"key": "midblock_crossing", "label": "Mid-block crossing in front of a moving vehicle"},
-      "signals": {
-        "stored": {"letter": null},
-        "yolo": {"ok": true, "person": true, "vehicle": true, "closeness": 0.12, "note": "1 person, 5 vehicles"},
-        "cosmos": null
-      },
-      "status": "unverified",
-      "reject_reason": null,
-      "severity": 1,
-      "reason": "Pedestrian is near the curb, but the description does not say they entered the road.",
-      "hotspot_key": "s3://sample-chunks/team-x/20260901_093000_pie-set01_chunk_0002.mp4"
+    "cosmos": null
+   },
+   "status": "verified",
+   "reject_reason": null,
+   "severity": 2,
+   "reason": "Pedestrian crosses mid-block in the path of the moving camera car.",
+   "hotspot_key": "s3://sample-chunks/team-x/20260901_101500_pie-set03_chunk_0004.mp4"
+  },
+  {
+   "id": "d90b3f15",
+   "source": "s3://sample-segments/team-x/pie-set03_chunk_0004_seg_0071.mp4",
+   "original_video": "s3://sample-chunks/team-x/20260901_101500_pie-set03_chunk_0004.mp4",
+   "camera_id": "pie_cam-3",
+   "location": "toronto",
+   "view": "dashcam",
+   "start_sec": 350.0,
+   "end_sec": 355.0,
+   "similarity": 0.55,
+   "caption": "The camera car approaches a marked crosswalk while moving. A pedestrian is already crossing from the right; the car ahead does not stop and passes close in front of the pedestrian. CAUSE: did_not_slow\nVERDICT: B",
+   "type": {
+    "key": "failure_to_yield",
+    "label": "Failure to yield at a crosswalk"
+   },
+   "signals": {
+    "stored": {
+     "letter": "B",
+     "cause": "did_not_slow"
     },
-    {
-      "id": "f58d7b21",
-      "source": "s3://sample-segments/team-x/pie-set03_chunk_0004_seg_0018.mp4",
-      "original_video": "s3://sample-chunks/team-x/20260901_101500_pie-set03_chunk_0004.mp4",
-      "camera_id": "pie_cam-3",
-      "location": "toronto",
-      "view": "dashcam",
-      "start_sec": 85.0,
-      "end_sec": 90.0,
-      "similarity": 0.49,
-      "caption": "The camera car waits at a red light. A van is stopped ahead with its rear wheels on the crosswalk markings. VERDICT: B",
-      "type": {"key": "blocked_crosswalk", "label": "Vehicle stopped on the crosswalk"},
-      "signals": {
-        "stored": {"letter": "B"},
-        "yolo": {"ok": false, "person": false, "vehicle": true, "closeness": null, "note": "detector saw no person in the clip"},
-        "cosmos": null
-      },
-      "status": "rejected",
-      "reject_reason": "Detector saw no person in the clip",
-      "severity": 0,
-      "reason": "No pedestrian was detected, so there is no pedestrian conflict.",
-      "hotspot_key": "s3://sample-chunks/team-x/20260901_101500_pie-set03_chunk_0004.mp4"
+    "yolo": {
+     "ok": true,
+     "person": true,
+     "vehicle": true,
+     "closeness": 0.38,
+     "note": "1 person, 2 vehicles"
     },
-    {
-      "id": "0b93e4aa",
-      "source": "s3://sample-segments/team-x/sf-streets-2_chunk_0001_seg_0003.mp4",
-      "original_video": "s3://sample-chunks/team-x/20260902_090000_sf-streets-2_chunk_0001.mp4",
-      "camera_id": "sf_streets_cam-2",
-      "location": "san_francisco",
-      "view": "fixed",
-      "start_sec": 10.0,
-      "end_sec": 15.0,
-      "similarity": 0.47,
-      "caption": "Cars wait behind the stop line while three pedestrians cross on the walk signal with clear space. VERDICT: C",
-      "type": {"key": "failure_to_yield", "label": "Failure to yield at a crosswalk"},
-      "signals": {
-        "stored": {"letter": "C"},
-        "yolo": {"ok": true, "person": true, "vehicle": true, "closeness": 0.2, "note": "3 people, 4 vehicles"},
-        "cosmos": null
-      },
-      "status": "rejected",
-      "reject_reason": "Cosmos verdict at ingest: normal yielding",
-      "severity": 0,
-      "reason": "Vehicles waited and pedestrians crossed with clear space.",
-      "hotspot_key": "sf_streets_cam-2"
-    }
-  ]
+    "cosmos": null
+   },
+   "status": "verified",
+   "reject_reason": null,
+   "severity": 2,
+   "reason": "Car ahead passes in front of a pedestrian already in the crosswalk.",
+   "hotspot_key": "s3://sample-chunks/team-x/20260901_101500_pie-set03_chunk_0004.mp4"
+  },
+  {
+   "id": "e2a6c038",
+   "source": "s3://sample-segments/team-x/pie-set01_chunk_0002_seg_0009.mp4",
+   "original_video": "s3://sample-chunks/team-x/20260901_093000_pie-set01_chunk_0002.mp4",
+   "camera_id": "pie_cam-3",
+   "location": "toronto",
+   "view": "dashcam",
+   "start_sec": 40.0,
+   "end_sec": 45.0,
+   "similarity": 0.52,
+   "caption": "The camera car drives along a street with parked cars. A pedestrian walks on the sidewalk near the curb.",
+   "type": {
+    "key": "midblock_crossing",
+    "label": "Mid-block crossing in front of a moving vehicle"
+   },
+   "signals": {
+    "stored": {
+     "letter": null,
+     "cause": null
+    },
+    "yolo": {
+     "ok": true,
+     "person": true,
+     "vehicle": true,
+     "closeness": 0.12,
+     "note": "1 person, 5 vehicles"
+    },
+    "cosmos": null
+   },
+   "status": "unverified",
+   "reject_reason": null,
+   "severity": 1,
+   "reason": "Pedestrian is near the curb, but the description does not say they entered the road.",
+   "hotspot_key": "s3://sample-chunks/team-x/20260901_093000_pie-set01_chunk_0002.mp4"
+  },
+  {
+   "id": "f58d7b21",
+   "source": "s3://sample-segments/team-x/pie-set03_chunk_0004_seg_0018.mp4",
+   "original_video": "s3://sample-chunks/team-x/20260901_101500_pie-set03_chunk_0004.mp4",
+   "camera_id": "pie_cam-3",
+   "location": "toronto",
+   "view": "dashcam",
+   "start_sec": 85.0,
+   "end_sec": 90.0,
+   "similarity": 0.49,
+   "caption": "The camera car waits at a red light. A van is stopped ahead with its rear wheels on the crosswalk markings. CAUSE: blocked_view\nVERDICT: B",
+   "type": {
+    "key": "blocked_crosswalk",
+    "label": "Vehicle stopped on the crosswalk"
+   },
+   "signals": {
+    "stored": {
+     "letter": "B",
+     "cause": "blocked_view"
+    },
+    "yolo": {
+     "ok": false,
+     "person": false,
+     "vehicle": true,
+     "closeness": null,
+     "note": "detector saw no person in the clip"
+    },
+    "cosmos": null
+   },
+   "status": "rejected",
+   "reject_reason": "Detector saw no person in the clip",
+   "severity": 0,
+   "reason": "No pedestrian was detected, so there is no pedestrian conflict.",
+   "hotspot_key": "s3://sample-chunks/team-x/20260901_101500_pie-set03_chunk_0004.mp4"
+  },
+  {
+   "id": "0b93e4aa",
+   "source": "s3://sample-segments/team-x/sf-streets-2_chunk_0001_seg_0003.mp4",
+   "original_video": "s3://sample-chunks/team-x/20260902_090000_sf-streets-2_chunk_0001.mp4",
+   "camera_id": "sf_streets_cam-2",
+   "location": "san_francisco",
+   "view": "fixed",
+   "start_sec": 10.0,
+   "end_sec": 15.0,
+   "similarity": 0.47,
+   "caption": "Cars wait behind the stop line while three pedestrians cross on the walk signal with clear space. VERDICT: C",
+   "type": {
+    "key": "failure_to_yield",
+    "label": "Failure to yield at a crosswalk"
+   },
+   "signals": {
+    "stored": {
+     "letter": "C",
+     "cause": null
+    },
+    "yolo": {
+     "ok": true,
+     "person": true,
+     "vehicle": true,
+     "closeness": 0.2,
+     "note": "3 people, 4 vehicles"
+    },
+    "cosmos": null
+   },
+   "status": "rejected",
+   "reject_reason": "Cosmos verdict at ingest: normal yielding",
+   "severity": 0,
+   "reason": "Vehicles waited and pedestrians crossed with clear space.",
+   "hotspot_key": "sf_streets_cam-2"
+  }
+ ]
 }

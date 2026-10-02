@@ -17,6 +17,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 from starlette.background import BackgroundTask
 
+import extras
 import gpu
 import llm
 import sweep
@@ -53,9 +54,52 @@ def _call(fn, *args, **kwargs):
         raise HTTPException(502, f"VSS backend unreachable: {redact(str(exc))}")
 
 
+def _flag(name, default):
+    return os.environ.get(name, default).strip().lower() not in ("0", "false", "no", "off", "")
+
+
 def features():
-    live = not sweep.fixture_mode() and vss.configured
-    return {"cosmos": live and gpu.configured(), "publish": state["tracing"], "watch": live}
+    """Which extras are on: a VIZ_* switch plus whatever the extra depends on.
+
+    Fixture mode turns the extras on with canned answers so the page can be built offline.
+    Re-ingest stays off unless VIZ_REINGEST=1, because it rewrites the team's shared index.
+    """
+    if sweep.fixture_mode():
+        return {"cosmos": True, "publish": True, "watch": True, "context": True, "reingest": _flag("VIZ_REINGEST", "0")}
+    live = vss.configured
+    return {
+        "cosmos": live and gpu.configured(),  # gpu.configured() also honours VIZ_COSMOS=0
+        "publish": _flag("VIZ_PUBLISH", "1") and state["tracing"],
+        "watch": live and _flag("VIZ_WATCH", "1"),
+        "context": live and _flag("VIZ_CONTEXT", "1"),
+        "reingest": live and _flag("VIZ_REINGEST", "0"),
+    }
+
+
+def _require(feature):
+    if not features().get(feature):
+        raise HTTPException(503, f"the '{feature}' feature is off here (see /health)")
+
+
+def _guard(fn, *args, **kwargs):
+    """Run an extra and turn upstream failures into clean, token-free HTTP errors."""
+    try:
+        return fn(*args, **kwargs)
+    except ValueError as exc:
+        raise HTTPException(400, redact(str(exc)))
+    except RuntimeError as exc:
+        raise HTTPException(503, redact(str(exc)))
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(502, f"upstream returned HTTP {exc.response.status_code}: {redact(exc.response.text[:300])}")
+    except httpx.HTTPError as exc:
+        raise HTTPException(502, f"upstream unreachable: {redact(str(exc))}")
+
+
+def _conflict_or_404(conflict_id):
+    conflict = sweep.get_conflict(conflict_id)
+    if conflict is None:
+        raise HTTPException(404, "unknown conflict id; run a sweep first")
+    return conflict
 
 
 class SearchBody(BaseModel):
@@ -93,6 +137,16 @@ class PublishBody(BaseModel):
 
 class WatchBody(BaseModel):
     on: bool
+
+
+class ProposeBody(BaseModel):
+    type: str
+
+
+class ReingestBody(BaseModel):
+    original_video: str
+    prompt: str | None = None
+    confirm: bool = False
 
 
 @app.get("/")
@@ -147,39 +201,78 @@ def draft_work_order(body: WorkOrderBody):
     return workorder.draft(conflicts)
 
 
+# ---- extras (see /health features) ----
+
+
 @app.post("/api/second-look")
 def second_look(body: SecondLookBody):
-    if not features()["cosmos"]:
-        raise HTTPException(503, "the Cosmos second look is not available here")
-    result = _call(sweep.second_look, body.conflict_id)
+    _require("cosmos")
+    if sweep.fixture_mode():
+        return extras.fixture_second_look(_conflict_or_404(body.conflict_id))
+    result = _guard(sweep.second_look, body.conflict_id)
     if result is None:
         raise HTTPException(404, "no such conflict; run a sweep first")
+    extras.refresh_latest()  # a second look can change the funnel and the hotspot ranking
     return result
 
 
 @app.post("/api/publish")
 def publish(body: PublishBody):
-    if not features()["publish"]:
-        raise HTTPException(503, "W&B tracing is off, so there is nowhere to publish")
+    _require("publish")
+    conflicts = [c for c in map(sweep.get_conflict, body.conflict_ids) if c]
+    if not conflicts:
+        raise HTTPException(404, "none of those conflicts are known; run a sweep first")
+    if sweep.fixture_mode():
+        return extras.fixture_publish(conflicts, body.labels)
     try:
         result = sweep.publish(body.conflict_ids, body.labels)
+        result["eval_url"] = extras.log_review(conflicts, body.labels)
     except Exception as exc:
         raise HTTPException(502, f"publish failed: {redact(str(exc))[:300]}")
-    if result is None:
-        raise HTTPException(404, "none of those conflicts are known; run a sweep first")
     return result
 
 
 @app.post("/api/watch")
 def watch(body: WatchBody):
-    if not features()["watch"]:
-        raise HTTPException(503, "watch mode needs the live VSS backend")
+    _require("watch")
+    if sweep.fixture_mode():
+        return {"on": body.on}
     return {"on": sweep.set_watch(body.on)}
 
 
 @app.get("/api/alerts")
 def alerts(since: int = 0):
     return sweep.alerts_since(since)
+
+
+@app.get("/api/context")
+def context(conflict_id: str):
+    _require("context")
+    return _guard(extras.context, _conflict_or_404(conflict_id))
+
+
+@app.post("/api/reingest/propose")
+def propose_reingest(body: ProposeBody):
+    _require("reingest")
+    return _guard(extras.propose_prompt, body.type)
+
+
+@app.post("/api/reingest")
+def run_reingest(body: ReingestBody):
+    _require("reingest")
+    if not body.confirm:
+        raise HTTPException(400, "re-ingest rewrites the team's index: send confirm: true")
+    if sweep.fixture_mode():
+        return {"job_id": "fixture", "status": "fixture mode: nothing was re-ingested"}
+    return _guard(extras.start_reingest, body.original_video, body.prompt)
+
+
+@app.get("/api/reingest/{job_id}")
+def reingest_progress(job_id: str):
+    _require("reingest")
+    if sweep.fixture_mode():
+        return {"job_id": job_id, "status": "completed"}
+    return _guard(extras.reingest_status, job_id)
 
 
 # ---- plain VSS passthroughs ----
