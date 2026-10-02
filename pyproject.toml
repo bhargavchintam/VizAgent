@@ -1,0 +1,10 @@
+[tool.ruff]
+line-length = 120
+src = ["app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff.lint]
+# Broad excepts are deliberate: tracing and the LLM judge must never crash a request.
+ignore = ["BLE001"]

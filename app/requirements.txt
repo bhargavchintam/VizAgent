@@ -1,0 +1,7 @@
+# Installed at pod start by deploy/deploy.sh (python:3.12-slim). Keep this list small.
+fastapi==0.142.2
+uvicorn==0.54.0
+httpx==0.28.1
+pydantic==2.13.5
+openai==3.24.0
+weave==0.53.11

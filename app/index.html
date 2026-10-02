@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VizAgent</title>
+  <style>
+    :root { --bg: #0f1420; --card: #182030; --text: #e8ecf3; --muted: #93a0b5; --accent: #4da3ff; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); }
+    main { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+    h1 { margin: 0 0 4px; } .sub { color: var(--muted); margin: 0 0 20px; }
+    form { display: flex; gap: 8px; flex-wrap: wrap; }
+    input { flex: 1 1 320px; padding: 10px 12px; border-radius: 8px; border: 1px solid #2c3850; background: var(--card); color: var(--text); }
+    button { padding: 10px 16px; border-radius: 8px; border: 0; background: var(--accent); color: #fff; cursor: pointer; }
+    button.alt { background: #2c3850; }
+    #status { color: var(--muted); margin: 12px 0; min-height: 1.2em; }
+    #answer { white-space: pre-wrap; background: var(--card); padding: 12px; border-radius: 8px; display: none; }
+    #results { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; margin-top: 12px; }
+    .card { background: var(--card); border-radius: 8px; padding: 10px; }
+    .card video { width: 100%; border-radius: 6px; background: #000; }
+    .meta { color: var(--muted); font-size: 12px; margin: 6px 0; }
+    .desc { font-size: 14px; max-height: 8em; overflow: auto; }
+    .sev { font-weight: 600; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>VizAgent</h1>
+  <p class="sub">Search the video archive, ask questions, or triage events.</p>
+  <form id="f">
+    <input id="q" placeholder="e.g. person close to a moving vehicle" required>
+    <button data-mode="search">Search</button>
+    <button data-mode="ask" class="alt">Ask</button>
+    <button data-mode="triage" class="alt">Triage</button>
+  </form>
+  <div id="status"></div>
+  <div id="answer"></div>
+  <div id="results"></div>
+</main>
+<script>
+  // Served behind Ingress at /app: build API URLs from the page path so they stay under /app.
+  const BASE = location.pathname.endsWith('/') ? location.pathname : location.pathname + '/';
+  const $ = (id) => document.getElementById(id);
+  let mode = 'search';
+  document.querySelectorAll('button[data-mode]').forEach(b => b.onclick = () => { mode = b.dataset.mode; });
+
+  function card(hit) {
+    const el = document.createElement('div');
+    el.className = 'card';
+    const v = hit.verdict || {};
+    const sev = v.severity ? `<div class="sev">Severity ${v.severity}/5 — ${v.reason || ''}</div>` : '';
+    el.innerHTML = `
+      <video controls preload="none" src="${BASE}api/stream?source=${encodeURIComponent(hit.source || hit.preview_source || '')}"></video>
+      ${sev}
+      <div class="meta">score ${(hit.similarity_score ?? 0).toFixed(3)}</div>
+      <div class="desc"></div>`;
+    el.querySelector('.desc').textContent = hit.reasoning_content || '';
+    el.querySelector('.meta').textContent += ' · ' + (hit.source || '').split('/').pop();
+    return el;
+  }
+
+  $('f').onsubmit = async (e) => {
+    e.preventDefault();
+    const q = $('q').value.trim();
+    $('status').textContent = 'Working…';
+    $('answer').style.display = 'none';
+    $('results').innerHTML = '';
+    const body = mode === 'ask' ? { question: q } : { query: q };
+    try {
+      const r = await fetch(`${BASE}api/${mode}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.detail || r.statusText);
+      const answer = data.answer || data.llm_synthesis?.response;
+      if (answer) { $('answer').textContent = answer; $('answer').style.display = 'block'; }
+      const hits = data.results || data.evidence?.chunks || [];
+      hits.forEach(h => $('results').appendChild(card(h)));
+      $('status').textContent = `${hits.length} result(s)`;
+    } catch (err) {
+      $('status').textContent = 'Error: ' + err.message;
+    }
+  };
+</script>
+</body>
+</html>

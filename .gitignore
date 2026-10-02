@@ -1,0 +1,24 @@
+# secrets & team config (never commit)
+.env
+.env.*
+!.env.example
+*.config
+!*.config.example
+secrets*.yaml
+
+# Cursor skills are copied from ~/vast-builders-challenge by scripts/vm_setup.sh
+.cursor/
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# os / editor
+.DS_Store
+.idea/
+.vscode/
+*.log
