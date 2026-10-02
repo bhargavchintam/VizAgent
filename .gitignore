@@ -26,3 +26,8 @@ venv/
 # real sweep snapshots are generated on the VM and contain bucket names
 app/snap_before.json
 app/snap_after.json
+
+# written by scripts/vm_run.py on the VM
+vm_run_log.txt
+.vm_run_state.json
+raw_before.json

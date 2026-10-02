@@ -306,3 +306,28 @@ def test_watch_alerts_only_on_new_verified_clips(client, monkeypatch):
     sweep._watch["seen"].clear()
     assert [c["source"] for c in sweep._watch_pass()] == ["s3://b/seg_1.mp4"]
     assert sweep._watch_pass() == []  # nothing new the second time round
+
+
+def test_vm_run_parses_config_and_picks_the_busiest_chunks(client, monkeypatch):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+    import vm_run
+
+    import sweep
+
+    config = "# identity\nUSERNAME=team-x\nexport PASSWORD='p=w'  # note\nINGRESS_URL=\"http://h\"\n\nnot a pair\n"
+    assert vm_run.parse_config(config) == {"USERNAME": "team-x", "PASSWORD": "p=w", "INGRESS_URL": "http://h"}
+
+    class Chunky(FakeVSS):
+        def search(self, query, **kwargs):
+            return {"results": [], "chunk_results": [
+                {"original_video": "s3://b/drive_7.mp4", "matched_segment_count": 5},
+                {"original_video": "s3://b/drive_2.mp4", "matched_segment_count": 9},
+                {"original_video": "s3://b/drive_4.mp4", "matched_segment_count": 1},
+            ]}  # fmt: skip
+
+    monkeypatch.setattr(sweep, "client", Chunky())
+    picks = vm_run.pick_chunks()
+    assert [(camera, vm_run.name_of(video)) for camera, video, _ in picks] == [
+        ("pie_cam-3", "drive_2.mp4"),
+        ("pie_cam-3", "drive_7.mp4"),
+    ]
