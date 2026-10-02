@@ -33,9 +33,10 @@ DEFAULT_CAMERAS = ["pie_cam-3"]
 MIN_SIMILARITY = float(os.environ.get("VIZ_MIN_SIMILARITY", "0.3"))
 MAX_CANDIDATES = 60
 # The team's VSS backend has a 4 GiB memory limit and was OOMKilled under 4 parallel searches
-# plus 8 parallel detection calls, so keep the load small.
-SEARCH_WORKERS = int(os.environ.get("VIZ_SEARCH_WORKERS", "2"))
-CHECK_WORKERS = int(os.environ.get("VIZ_CHECK_WORKERS", "4"))
+# plus 8 parallel detection calls, and answers 502 to 2 parallel searches when the shared GPU
+# is busy, so searches run one at a time and checks three at a time.
+SEARCH_WORKERS = int(os.environ.get("VIZ_SEARCH_WORKERS", "1"))
+CHECK_WORKERS = int(os.environ.get("VIZ_CHECK_WORKERS", "3"))
 # Optional: after a sweep, Cosmos Reason re-watches the top clips with a targeted question.
 AUTO_SECOND_LOOK = os.environ.get("VIZ_AUTO_SECOND_LOOK", "0") == "1"
 AUTO_LOOK_COUNT = 3

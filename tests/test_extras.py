@@ -264,3 +264,23 @@ def test_fixture_send_and_publish_numbers(client, monkeypatch):  # noqa: F811
     assert sent["status"] == "SENT" and "fixture" in sent["sent_to"]
     pub = client.post("/api/publish", json={"conflict_ids": [first], "labels": {first: True}}).json()
     assert pub["review"]["search_only"] == {"real": 1, "total": 1}
+
+
+def test_vss_retries_busy_backend_then_succeeds(monkeypatch):
+    import httpx
+
+    import vss
+
+    monkeypatch.setattr(vss, "BACKOFF_SECONDS", (0, 0))
+    api = vss.VSSClient(base_url="http://vss.test", username="u", password="p")
+    api._token = "t"
+    codes = iter([502, 503, 200])
+
+    def fake_request(method, url, headers=None, **kwargs):
+        return httpx.Response(next(codes), json={"results": []}, request=httpx.Request(method, url))
+
+    monkeypatch.setattr(api._http, "request", fake_request)
+    assert api.search("q") == {"results": []}
+    codes = iter([502, 502, 502])
+    with pytest.raises(httpx.HTTPStatusError):
+        api.search("q")

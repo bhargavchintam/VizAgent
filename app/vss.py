@@ -6,8 +6,12 @@ Credentials come from the environment only, never from files in this repo.
 
 import os
 import re
+import time
 
 import httpx
+
+TRANSIENT = {502, 503, 504}
+BACKOFF_SECONDS = (2.0, 5.0)
 
 
 def redact(text):
@@ -57,11 +61,18 @@ class VSSClient:
     def _request(self, method, path, **kwargs):
         if not self.configured:
             raise RuntimeError("VSS is not configured: set VSS_URL/VSS_USERNAME/VSS_PASSWORD")
-        for attempt in range(2):
+        relogged, retries = False, 0
+        while True:
             headers = {"Authorization": f"Bearer {self.token}"}
             resp = self._http.request(method, self._url(path), headers=headers, **kwargs)
-            if resp.status_code == 401 and attempt == 0:
-                self._token = None  # token expired, log in again once
+            if resp.status_code == 401 and not relogged:
+                self._token, relogged = None, True  # token expired, log in again once
+                continue
+            # The team backend answers 502/503/504 while it is busy (every search also waits
+            # on a Cosmos summary from the shared GPU), so back off and try again.
+            if resp.status_code in TRANSIENT and retries < len(BACKOFF_SECONDS):
+                time.sleep(BACKOFF_SECONDS[retries])
+                retries += 1
                 continue
             resp.raise_for_status()
             return resp.json()
