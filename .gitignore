@@ -31,3 +31,6 @@ app/snap_after.json
 vm_run_log.txt
 .vm_run_state.json
 raw_before.json
+
+# saved runs (real team data; local only)
+runs/
