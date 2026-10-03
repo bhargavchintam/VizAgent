@@ -1,0 +1,13 @@
+{
+  "name": "vizagent-demo-video",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ViZ Agent 2-minute demo video: HeyGen HyperFrames composition with ElevenLabs v4 narration",
+  "scripts": {
+    "render": "PATH=\"$PWD/bin:$PATH\" hyperframes render --output renders/vizagent_demo.mp4"
+  },
+  "dependencies": {
+    "@ffprobe-installer/ffprobe": "^2.1.2",
+    "hyperframes": "^0.8.113"
+  }
+}

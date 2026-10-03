@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=1920, height=1080">
+    <title>ViZ Agent demo</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; background: #0a1020; overflow: hidden; }
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; color: #e8eef9;
+        font-family: -apple-system, "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+        background: radial-gradient(1300px 760px at 72% 18%, #16264a 0%, #0a1020 62%); }
+      .scene { position: absolute; inset: 0; }
+      .kicker { position: absolute; top: 250px; width: 100%; text-align: center; font-size: 32px; color: #8ea3c7; letter-spacing: 3px; text-transform: uppercase; }
+      .title { position: absolute; top: 320px; width: 100%; text-align: center; font-size: 190px; font-weight: 800; letter-spacing: -4px; color: #fff; }
+      .title.small { top: 150px; font-size: 140px; }
+      .subtitle { position: absolute; top: 560px; width: 100%; text-align: center; font-size: 50px; color: #67e8f9; font-weight: 500; }
+      .team { position: absolute; top: 760px; width: 100%; display: flex; justify-content: center; gap: 22px; font-size: 34px; }
+      .team > * { padding: 12px 26px; border-radius: 999px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); }
+      .team b { background: #22d3ee; color: #06202a; border-color: #22d3ee; }
+      #s-close .team { top: 640px; }
+      .links { position: absolute; top: 380px; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 22px; font-size: 44px; color: #dbe7ff; }
+      .links b { display: inline-block; width: 190px; margin-right: 22px; text-align: right; font-size: 30px; color: #8ea3c7; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; }
+      .built { position: absolute; top: 820px; width: 100%; display: flex; justify-content: center; gap: 16px; font-size: 28px; color: #b9c7e3; }
+      .built span { padding: 10px 22px; border-radius: 12px; background: rgba(103,232,249,.08); border: 1px solid rgba(103,232,249,.25); }
+      .stat { position: absolute; }
+      .big { font-size: 330px; font-weight: 800; line-height: 1; letter-spacing: -8px; }
+      .stat.b .big { font-size: 220px; }
+      .amber { color: #fbbf24; } .dim { color: #64748b; } .cyan { color: #22d3ee; }
+      .lbl { margin-top: 18px; font-size: 40px; color: #b9c7e3; line-height: 1.3; }
+      .lbl b { color: #fff; }
+      .law, .chip { position: absolute; display: inline-flex; align-items: center; gap: 16px; padding: 14px 28px; border-radius: 999px;
+        background: rgba(34,211,238,.12); border: 1px solid rgba(34,211,238,.45); color: #a5f3fc; font-size: 34px; font-weight: 600; }
+      .law i, .chip i { width: 14px; height: 14px; border-radius: 50%; background: #22d3ee; display: inline-block; }
+      .law { left: 170px; top: 800px; }
+      .chip { left: 110px; top: 66px; }
+      .source { position: absolute; left: 170px; top: 960px; font-size: 24px; color: #64748b; }
+      .card { position: absolute; top: 330px; width: 380px; height: 420px; padding: 40px 34px; border-radius: 28px;
+        background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.03)); border: 1px solid rgba(255,255,255,.12); }
+      .step { width: 84px; height: 84px; border-radius: 50%; background: #22d3ee; color: #06202a; font-size: 44px; font-weight: 800;
+        display: flex; align-items: center; justify-content: center; }
+      .ct { margin-top: 46px; font-size: 64px; font-weight: 800; color: #fff; }
+      .cs { margin-top: 18px; font-size: 32px; line-height: 1.35; color: #9fb3d6; }
+      .arrow { position: absolute; top: 480px; width: 48px; text-align: center; font-size: 90px; color: #22d3ee; line-height: 1; }
+      .shot { position: absolute; border-radius: 18px; overflow: hidden; background: #fff;
+        box-shadow: 0 30px 90px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.1); }
+      .shot img { display: block; width: 100%; height: 100%; object-fit: cover; transform-origin: 50% 40%; }
+      .funnel { position: absolute; left: 1350px; top: 240px; width: 460px; text-align: center; }
+      .fnum { font-size: 200px; font-weight: 800; line-height: 1; }
+      .flbl { font-size: 40px; color: #b9c7e3; margin-top: 4px; }
+      .fdown { font-size: 80px; color: #475569; margin: 18px 0; line-height: 1; }
+      .book { position: absolute; left: 240px; top: 165px; width: 1440px; height: 810px; border-radius: 18px; overflow: hidden;
+        background: #000; box-shadow: 0 30px 90px rgba(0,0,0,.6); }
+      .book img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; }
+      .still { position: absolute; left: 110px; top: 250px; width: 940px; height: 529px; border-radius: 18px; overflow: hidden;
+        box-shadow: 0 30px 90px rgba(0,0,0,.6); }
+      .still img { width: 100%; height: 100%; object-fit: cover; filter: brightness(.85); }
+      .look { position: absolute; left: 1130px; top: 230px; width: 700px; }
+      .lh { font-size: 34px; color: #8ea3c7; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; }
+      .verdict { display: flex; align-items: center; gap: 34px; margin: 40px 0 46px; }
+      .letter { width: 190px; height: 190px; border-radius: 50%; background: #fbbf24; color: #2a1a00; font-size: 130px; font-weight: 800;
+        display: flex; align-items: center; justify-content: center; }
+      .vt { font-size: 80px; font-weight: 800; color: #fff; }
+      .q { font-size: 40px; font-style: italic; color: #dbe7ff; margin-top: 18px; line-height: 1.3; }
+      #brand { position: absolute; left: 110px; top: 1000px; font-size: 24px; color: #5b6b8c; letter-spacing: 1px; }
+      #brand b { color: #8ea3c7; }
+    </style>
+  </head>
+  <body>
+  <div id="root" data-composition-id="main" data-start="0" data-duration="119.74" data-width="1920" data-height="1080" data-fps="30">
+    <div id="s-title" class="clip scene" data-start="0.0" data-duration="7.96" data-track-index="1"><div class="kicker">VAST Builders Challenge &middot; Real-Time Video Agents</div><div class="title">ViZ Agent</div><div class="subtitle">Vision Zero conflict finder</div><div class="team"><b>Team 20</b><span>Bindu Bhargava Reddy Chintam</span><span>Sripadha V</span><span>Jacob Shrader</span></div></div>
+    <div id="s-problem" class="clip scene" data-start="7.96" data-duration="18.44" data-track-index="1"><div class="stat a" style="left:170px;top:210px"><div class="big amber">100</div><div class="lbl">fatal + severe crashes<br><b>first half of 2026</b></div></div><div class="stat b" style="left:1110px;top:300px"><div class="big dim">92</div><div class="lbl">in 2014<br><b>the year SF pledged Vision Zero</b></div></div><div class="law"><i></i>Street Safety Act &middot; quarterly public dashboards</div><div class="source">Sources: SFMTA report via Streetsblog SF (Aug 2026); Walk SF; KQED</div></div>
+    <div id="s-how" class="clip scene" data-start="26.4" data-duration="16.04" data-track-index="1"><div class="card" style="left:110px"><div class="step">1</div><div class="ct">Search</div><div class="cs">VAST &middot; NVIDIA VSS</div></div><div class="card" style="left:550px"><div class="step">2</div><div class="ct">Verify</div><div class="cs">YOLO &middot; Cosmos Reason &middot; Nemotron</div></div><div class="card" style="left:990px"><div class="step">3</div><div class="ct">Rank</div><div class="cs">hotspots by camera</div></div><div class="card" style="left:1430px"><div class="step">4</div><div class="ct">Act</div><div class="cs">Open311 work order</div></div><div class="arrow" style="left:502px">&rsaquo;</div><div class="arrow" style="left:942px">&rsaquo;</div><div class="arrow" style="left:1382px">&rsaquo;</div></div>
+    <div id="s-sweep" class="clip scene" data-start="42.44" data-duration="13.72" data-track-index="1"><div class="chip"><i></i>Live sweep · 5 cameras</div><div class="shot" style="left:110px;top:190px;width:1160px;height:569px"><img src="assets/app.jpg" alt=""></div><div class="funnel"><div class="fnum dim">60</div><div class="flbl">candidates</div><div class="fdown">&darr;</div><div class="fnum cyan">4</div><div class="flbl">verified</div></div></div>
+    <div id="s-hot" class="clip scene" data-start="56.16" data-duration="5.96" data-track-index="1"><div class="chip"><i></i>Where to act first</div><div class="shot" style="left:110px;top:405px;width:1700px;height:369px"><img src="assets/hot.jpg" alt=""></div></div>
+    <div id="s-clip" class="clip scene" data-start="62.12" data-duration="6.3" data-track-index="1"><div class="chip"><i></i>Real footage · SF street camera</div><div id="clipbook" class="book"><img src="assets/clip/f001.jpg" alt=""><img src="assets/clip/f002.jpg" alt=""><img src="assets/clip/f003.jpg" alt=""><img src="assets/clip/f004.jpg" alt=""><img src="assets/clip/f005.jpg" alt=""><img src="assets/clip/f006.jpg" alt=""><img src="assets/clip/f007.jpg" alt=""><img src="assets/clip/f008.jpg" alt=""><img src="assets/clip/f009.jpg" alt=""><img src="assets/clip/f010.jpg" alt=""><img src="assets/clip/f011.jpg" alt=""><img src="assets/clip/f012.jpg" alt=""><img src="assets/clip/f013.jpg" alt=""><img src="assets/clip/f014.jpg" alt=""><img src="assets/clip/f015.jpg" alt=""><img src="assets/clip/f016.jpg" alt=""><img src="assets/clip/f017.jpg" alt=""><img src="assets/clip/f018.jpg" alt=""><img src="assets/clip/f019.jpg" alt=""><img src="assets/clip/f020.jpg" alt=""><img src="assets/clip/f021.jpg" alt=""><img src="assets/clip/f022.jpg" alt=""><img src="assets/clip/f023.jpg" alt=""><img src="assets/clip/f024.jpg" alt=""><img src="assets/clip/f025.jpg" alt=""><img src="assets/clip/f026.jpg" alt=""><img src="assets/clip/f027.jpg" alt=""><img src="assets/clip/f028.jpg" alt=""><img src="assets/clip/f029.jpg" alt=""><img src="assets/clip/f030.jpg" alt=""><img src="assets/clip/f031.jpg" alt=""><img src="assets/clip/f032.jpg" alt=""><img src="assets/clip/f033.jpg" alt=""><img src="assets/clip/f034.jpg" alt=""><img src="assets/clip/f035.jpg" alt=""><img src="assets/clip/f036.jpg" alt=""><img src="assets/clip/f037.jpg" alt=""><img src="assets/clip/f038.jpg" alt=""><img src="assets/clip/f039.jpg" alt=""><img src="assets/clip/f040.jpg" alt=""><img src="assets/clip/f041.jpg" alt=""><img src="assets/clip/f042.jpg" alt=""><img src="assets/clip/f043.jpg" alt=""><img src="assets/clip/f044.jpg" alt=""><img src="assets/clip/f045.jpg" alt=""><img src="assets/clip/f046.jpg" alt=""><img src="assets/clip/f047.jpg" alt=""><img src="assets/clip/f048.jpg" alt=""><img src="assets/clip/f049.jpg" alt=""><img src="assets/clip/f050.jpg" alt=""><img src="assets/clip/f051.jpg" alt=""><img src="assets/clip/f052.jpg" alt=""><img src="assets/clip/f053.jpg" alt=""><img src="assets/clip/f054.jpg" alt=""><img src="assets/clip/f055.jpg" alt=""><img src="assets/clip/f056.jpg" alt=""><img src="assets/clip/f057.jpg" alt=""><img src="assets/clip/f058.jpg" alt=""><img src="assets/clip/f059.jpg" alt=""><img src="assets/clip/f060.jpg" alt=""><img src="assets/clip/f061.jpg" alt=""><img src="assets/clip/f062.jpg" alt=""><img src="assets/clip/f063.jpg" alt=""><img src="assets/clip/f064.jpg" alt=""><img src="assets/clip/f065.jpg" alt=""><img src="assets/clip/f066.jpg" alt=""><img src="assets/clip/f067.jpg" alt=""><img src="assets/clip/f068.jpg" alt=""><img src="assets/clip/f069.jpg" alt=""><img src="assets/clip/f070.jpg" alt=""><img src="assets/clip/f071.jpg" alt=""><img src="assets/clip/f072.jpg" alt=""><img src="assets/clip/f073.jpg" alt=""><img src="assets/clip/f074.jpg" alt=""><img src="assets/clip/f075.jpg" alt=""></div></div>
+    <div id="s-second" class="clip scene" data-start="68.42" data-duration="10.68" data-track-index="1"><div class="still"><img src="assets/clip/f075.jpg" alt=""></div><div class="look"><div class="lh">Cosmos Reason &middot; second look</div><div class="verdict"><span class="letter">B</span><span class="vt">conflict</span></div><div class="q q1">&ldquo;outside the designated crosswalk&rdquo;</div><div class="q q2">&ldquo;without slowing down or stopping&rdquo;</div></div></div>
+    <div id="s-review" class="clip scene" data-start="79.1" data-duration="9.96" data-track-index="1"><div class="chip"><i></i>Engineer review</div><div class="shot" style="left:261px;top:190px;width:1397px;height:800px"><img src="assets/review.jpg" alt=""></div></div>
+    <div id="s-order" class="clip scene" data-start="89.06" data-duration="13.96" data-track-index="1"><div class="chip"><i></i>Drafted work order · Open311 · FHWA fix</div><div class="shot" style="left:160px;top:203px;width:1600px;height:773px"><img src="assets/order.jpg" alt=""></div></div>
+    <div id="s-weave" class="clip scene" data-start="103.02" data-duration="8.12" data-track-index="1"><div class="chip"><i></i>Traced in W&amp;B Weave</div><div class="shot" style="left:100px;top:423px;width:1720px;height:333px"><img src="assets/weave.jpg" alt=""></div></div>
+    <div id="s-close" class="clip scene" data-start="111.14" data-duration="8.6" data-track-index="1"><div class="title small">ViZ Agent</div><div class="links"><div><b>Live app</b>team-20-app.thecosmoslabs.com/app</div><div><b>Code</b>github.com/bhargavchintam/VizAgent</div></div><div class="team"><b>Team 20</b><span>Bindu Bhargava Reddy Chintam</span><span>Sripadha V</span><span>Jacob Shrader</span></div><div class="built"><span>VAST Data</span><span>NVIDIA VSS</span><span>Cosmos Reason</span><span>YOLO</span><span>Nemotron</span><span>W&amp;B Weave</span></div></div>
+    <div id="brand" class="clip" data-start="7.96" data-duration="103.18" data-track-index="2"><b>ViZ Agent</b> &middot; Team 20 &middot; VAST Builders Challenge</div>
+    <audio id="narration" src="narration.wav" data-start="0" data-duration="119.74" data-track-index="0" data-volume="1"></audio>
+  </div>
+    <script>
+      const tl = gsap.timeline({ paused: true });
+      tl.fromTo('#s-title', {opacity: 0}, {opacity: 1, duration: 0.45, ease: 'power1.out'}, 0.0);
+      tl.to('#s-title', {opacity: 0, duration: 0.35, ease: 'power1.in'}, 7.61);
+      tl.from('#s-title .kicker', {y: 20, opacity: 0, duration: 0.6}, 0.2);
+      tl.from('#s-title .title', {y: 40, opacity: 0, duration: 0.8, ease: 'power3.out'}, 0.35);
+      tl.from('#s-title .subtitle', {y: 24, opacity: 0, duration: 0.6}, 0.8);
+      tl.from('#s-title .team > *', {y: 18, opacity: 0, duration: 0.5, stagger: 0.18}, 3.98);
+      tl.fromTo('#s-problem', {opacity: 0}, {opacity: 1, duration: 0.45, ease: 'power1.out'}, 7.96);
+      tl.to('#s-problem', {opacity: 0, duration: 0.35, ease: 'power1.in'}, 26.05);
+      tl.from('#s-problem .b', {y: 30, opacity: 0, duration: 0.6}, 8.41);
+      tl.from('#s-problem .a', {y: 40, opacity: 0, scale: 0.92, duration: 0.7, ease: 'back.out(1.6)'}, 12.35);
+      tl.from('#s-problem .law', {y: 24, opacity: 0, duration: 0.6}, 16.4);
+      tl.from('#s-problem .source', {opacity: 0, duration: 0.6}, 16.8);
+      tl.fromTo('#s-how', {opacity: 0}, {opacity: 1, duration: 0.45, ease: 'power1.out'}, 26.4);
+      tl.to('#s-how', {opacity: 0, duration: 0.35, ease: 'power1.in'}, 42.09);
+      tl.from('#s-how .card:nth-of-type(1)', {y: 40, opacity: 0, duration: 0.55, ease: 'power2.out'}, 29.66);
+      tl.from('#s-how .card:nth-of-type(2)', {y: 40, opacity: 0, duration: 0.55, ease: 'power2.out'}, 34.02);
+      tl.from('#s-how .arrow:nth-of-type(5)', {x: -16, opacity: 0, duration: 0.4}, 33.87);
+      tl.from('#s-how .card:nth-of-type(3)', {y: 40, opacity: 0, duration: 0.55, ease: 'power2.out'}, 38.08);
+      tl.from('#s-how .arrow:nth-of-type(6)', {x: -16, opacity: 0, duration: 0.4}, 37.93);
+      tl.from('#s-how .card:nth-of-type(4)', {y: 40, opacity: 0, duration: 0.55, ease: 'power2.out'}, 39.48);
+      tl.from('#s-how .arrow:nth-of-type(7)', {x: -16, opacity: 0, duration: 0.4}, 39.33);
+      tl.fromTo('#s-sweep', {opacity: 0}, {opacity: 1, duration: 0.45, ease: 'power1.out'}, 42.44);
+      tl.to('#s-sweep', {opacity: 0, duration: 0.35, ease: 'power1.in'}, 55.81);
+      tl.from('#s-sweep .chip', {x: -30, opacity: 0, duration: 0.5}, 42.64);
+      tl.fromTo('#s-sweep .shot img', {scale: 1}, {scale: 1.05, duration: 13.72, ease: 'none'}, 42.44);
+      tl.from('#s-sweep .funnel > :nth-child(-n+2)', {y: 20, opacity: 0, duration: 0.5, stagger: 0.1}, 44.09);
+      tl.from('#s-sweep .fdown', {y: -20, opacity: 0, duration: 0.4}, 50.0);
+      tl.from('#s-sweep .funnel > :nth-child(n+4)', {scale: 0.6, opacity: 0, duration: 0.6, stagger: 0.1, ease: 'back.out(2)'}, 52.28);
+      tl.fromTo('#s-hot', {opacity: 0}, {opacity: 1, duration: 0.45, ease: 'power1.out'}, 56.16);
+      tl.to('#s-hot', {opacity: 0, duration: 0.35, ease: 'power1.in'}, 61.77);
+      tl.from('#s-hot .chip', {x: -30, opacity: 0, duration: 0.5}, 56.36);
+      tl.from('#s-hot .shot', {y: 30, opacity: 0, duration: 0.6, ease: 'power2.out'}, 56.46);
+      tl.fromTo('#s-hot .shot img', {scale: 1}, {scale: 1.04, duration: 5.96, ease: 'none'}, 56.16);
+      tl.fromTo('#s-clip', {opacity: 0}, {opacity: 1, duration: 0.45, ease: 'power1.out'}, 62.12);
+      tl.to('#s-clip', {opacity: 0, duration: 0.35, ease: 'power1.in'}, 68.07);
+      tl.from('#s-clip .chip', {x: -30, opacity: 0, duration: 0.5}, 62.32);
+      const book = document.querySelectorAll('#s-clip .book img');
+      book.forEach((img, i) => { tl.set(img, {opacity: 1}, 62.82 + i / 15); if (i) tl.set(book[i - 1], {opacity: 0}, 62.82 + i / 15); });
+      tl.fromTo('#s-second', {opacity: 0}, {opacity: 1, duration: 0.45, ease: 'power1.out'}, 68.42);
+      tl.to('#s-second', {opacity: 0, duration: 0.35, ease: 'power1.in'}, 78.75);
+      tl.fromTo('#s-second .still img', {scale: 1.0}, {scale: 1.08, duration: 10.68, ease: 'none'}, 68.42);
+      tl.from('#s-second .lh', {y: 20, opacity: 0, duration: 0.5}, 68.72);
+      tl.from('#s-second .q1', {y: 20, opacity: 0, duration: 0.5}, 71.07);
+      tl.from('#s-second .q2', {y: 20, opacity: 0, duration: 0.5}, 72.27);
+      tl.from('#s-second .verdict', {scale: 0.5, opacity: 0, duration: 0.6, ease: 'back.out(2)'}, 75.5);
+      tl.fromTo('#s-review', {opacity: 0}, {opacity: 1, duration: 0.45, ease: 'power1.out'}, 79.1);
+      tl.to('#s-review', {opacity: 0, duration: 0.35, ease: 'power1.in'}, 88.71);
+      tl.from('#s-review .chip', {x: -30, opacity: 0, duration: 0.5}, 79.3);
+      tl.from('#s-review .shot', {y: 30, opacity: 0, duration: 0.6, ease: 'power2.out'}, 79.4);
+      tl.fromTo('#s-review .shot img', {scale: 1}, {scale: 1.04, duration: 9.96, ease: 'none'}, 79.1);
+      tl.fromTo('#s-order', {opacity: 0}, {opacity: 1, duration: 0.45, ease: 'power1.out'}, 89.06);
+      tl.to('#s-order', {opacity: 0, duration: 0.35, ease: 'power1.in'}, 102.67);
+      tl.from('#s-order .chip', {x: -30, opacity: 0, duration: 0.5}, 89.26);
+      tl.from('#s-order .shot', {y: 30, opacity: 0, duration: 0.6, ease: 'power2.out'}, 89.36);
+      tl.fromTo('#s-order .shot img', {scale: 1}, {scale: 1.04, duration: 13.96, ease: 'none'}, 89.06);
+      tl.fromTo('#s-weave', {opacity: 0}, {opacity: 1, duration: 0.45, ease: 'power1.out'}, 103.02);
+      tl.to('#s-weave', {opacity: 0, duration: 0.35, ease: 'power1.in'}, 110.79);
+      tl.from('#s-weave .chip', {x: -30, opacity: 0, duration: 0.5}, 103.22);
+      tl.from('#s-weave .shot', {y: 30, opacity: 0, duration: 0.6, ease: 'power2.out'}, 103.32);
+      tl.fromTo('#s-weave .shot img', {scale: 1}, {scale: 1.04, duration: 8.12, ease: 'none'}, 103.02);
+      tl.fromTo('#s-close', {opacity: 0}, {opacity: 1, duration: 0.45, ease: 'power1.out'}, 111.14);
+      tl.to('#s-close', {opacity: 0, duration: 0.35, ease: 'power1.in'}, 119.39);
+      tl.from('#s-close .title', {y: 30, opacity: 0, duration: 0.7}, 111.34);
+      tl.from('#s-close .links > div', {y: 20, opacity: 0, duration: 0.5, stagger: 0.2}, 111.94);
+      tl.from('#s-close .team > *', {y: 16, opacity: 0, duration: 0.45, stagger: 0.15}, 115.84);
+      tl.from('#s-close .built span', {y: 14, opacity: 0, duration: 0.4, stagger: 0.08}, 112.54);
+      window.__timelines = window.__timelines || {};
+      window.__timelines.main = tl;
+    </script>
+  </body>
+</html>

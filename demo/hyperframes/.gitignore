@@ -1,0 +1,10 @@
+# generated or local-only (rebuild with build.py / npm install)
+node_modules/
+bin/
+renders/
+check/
+voice/
+voice_el/*.wav
+assets/clip/
+clip_sf4.mp4
+narration*.wav

@@ -6,6 +6,8 @@ A Vision Zero conflict finder, built at the **VAST Builders Challenge: Real-Time
 ViZ Agent sweeps street-camera and dashcam video for pedestrian–vehicle conflicts, double-checks every
 clip, ranks where the conflicts happen, and drafts the work order a city traffic engineer could act on.
 
+**Demo video (2 min):** [watch on Google Drive](https://drive.google.com/file/d/1K9Tf1ObIpW3gEpsApN-hMGbWA5NjscKa/view?usp=sharing) · made with HeyGen HyperFrames and ElevenLabs v4, source in [`demo/`](demo/)
+
 **Why it matters.** Cities usually learn a crossing is dangerous after someone is hit. San Francisco's
 transport agency reported severe-injury collisions up 8% in the first half of 2026
 ([ABC7](https://abc7news.com/post/san-francisco-municipal-transportation-agency-report-shows-severe-injury-collisions-8-city-streets-2026/19593328/)),
@@ -154,6 +156,7 @@ scripts/vm_run.py    # the whole VM side in one command
 scripts/probe.py     # prints masked shapes of real responses
 skills/              # the agent packaged as an Agent Skill
 tests/               # pytest suite
+demo/                # the 2-minute demo video and its HyperFrames + ElevenLabs source
 API.md               # the contract between the engine and the page
 ```
 
@@ -161,3 +164,4 @@ API.md               # the contract between the engine and the page
 
 - Bindu Bhargava Reddy Chintam
 - Sripadha V
+- Jacob Shrader

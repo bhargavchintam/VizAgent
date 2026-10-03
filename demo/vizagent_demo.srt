@@ -1,0 +1,120 @@
+1
+00:00:00,450 --> 00:00:03,467
+Cities already record hours of street video.
+
+2
+00:00:03,979 --> 00:00:07,410
+ViZ Agent watches it, so city engineers don't
+have to.
+
+3
+00:00:08,410 --> 00:00:11,827
+San Francisco pledged Vision Zero in 2014.
+
+4
+00:00:12,348 --> 00:00:16,013
+Twelve years later, serious crashes are higher,
+not lower.
+
+5
+00:00:16,403 --> 00:00:21,203
+A new city law now asks for progress reports
+every quarter.
+
+6
+00:00:21,706 --> 00:00:25,592
+The close calls are already on camera. Nobody
+has time to watch them.
+
+7
+00:00:26,850 --> 00:00:29,241
+So we built an agent that does the watching.
+
+8
+00:00:29,655 --> 00:00:33,536
+It searches the indexed video for four kinds of
+pedestrian conflict.
+
+9
+00:00:34,023 --> 00:00:37,669
+Every candidate must pass three independent
+checks before it counts.
+
+10
+00:00:38,080 --> 00:00:41,732
+Then it ranks the locations and drafts a fix for
+the worst one.
+
+11
+00:00:42,890 --> 00:00:49,664
+In our live run, the sweep pulled sixty
+candidate clips from a Toronto dashcam and four
+San Francisco street cameras.
+
+12
+00:00:50,002 --> 00:00:51,863
+Fifty-six were thrown out.
+
+13
+00:00:52,285 --> 00:00:55,432
+So an engineer reviews four clips, not sixty.
+
+14
+00:00:56,610 --> 00:01:01,570
+What survives is grouped by camera, so the worst
+location rises to the top.
+
+15
+00:01:02,570 --> 00:01:06,970
+This is one of the verified clips, straight from
+a San Francisco street camera.
+
+16
+00:01:08,870 --> 00:01:14,802
+For a second opinion, Cosmos Reason watches the
+clip again and explains what physically
+happened.
+
+17
+00:01:15,504 --> 00:01:18,303
+It agrees: this is a real conflict.
+
+18
+00:01:19,550 --> 00:01:23,448
+An engineer confirms or rejects each clip with
+one click.
+
+19
+00:01:23,874 --> 00:01:28,510
+Those labels measure the agent's precision and
+become a dataset for the next model.
+
+20
+00:01:29,510 --> 00:01:32,174
+Approved clips turn into a drafted work order.
+
+21
+00:01:32,727 --> 00:01:38,610
+The cause of the conflict picks a proven federal
+safety fix, ready to file with SF311.
+
+22
+00:01:39,217 --> 00:01:42,470
+A person still signs off before anything is
+sent.
+
+23
+00:01:43,470 --> 00:01:50,431
+Every search, check and model call is traced in
+Weights & Biases Weave, so each decision can be
+audited.
+
+24
+00:01:51,590 --> 00:01:55,452
+Less time watching video. More time fixing
+streets.
+
+25
+00:01:55,844 --> 00:01:59,034
+Built by Team 20 for the VAST Builders
+Challenge.
