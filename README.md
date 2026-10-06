@@ -6,7 +6,13 @@ A Vision Zero conflict finder, built at the **VAST Builders Challenge: Real-Time
 ViZ Agent sweeps street-camera and dashcam video for pedestrian–vehicle conflicts, double-checks every
 clip, ranks where the conflicts happen, and drafts the work order a city traffic engineer could act on.
 
-**Demo video (2 min):** [watch on Google Drive](https://drive.google.com/file/d/1K9Tf1ObIpW3gEpsApN-hMGbWA5NjscKa/view?usp=sharing) · made with HeyGen HyperFrames and ElevenLabs v4, source in [`demo/`](demo/)
+[![ViZ Agent demo: a 16-second preview. Click to watch the full 2-minute video with sound.](demo/preview.gif)](https://drive.google.com/file/d/1K9Tf1ObIpW3gEpsApN-hMGbWA5NjscKa/view?usp=sharing)
+
+*A 16-second silent preview. Click it for the full 2-minute video with sound.*
+
+- **Live app:** https://team-20-app.thecosmoslabs.com/app/
+- **Demo video (2 min):** [watch on Google Drive](https://drive.google.com/file/d/1K9Tf1ObIpW3gEpsApN-hMGbWA5NjscKa/view?usp=sharing) · [MP4 in this repo](demo/vizagent_demo.mp4) · made with HeyGen HyperFrames and ElevenLabs v4, source in [`demo/`](demo/)
+- **Code:** https://github.com/bhargavchintam/VizAgent
 
 **Why it matters.** Cities usually learn a crossing is dangerous after someone is hit. San Francisco's
 transport agency reported severe-injury collisions up 8% in the first half of 2026

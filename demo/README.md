@@ -1,5 +1,7 @@
 # Demo video
 
+[![ViZ Agent demo: a 16-second preview. Click to watch the full video.](preview.gif)](https://drive.google.com/file/d/1K9Tf1ObIpW3gEpsApN-hMGbWA5NjscKa/view?usp=sharing)
+
 **[Watch on Google Drive](https://drive.google.com/file/d/1K9Tf1ObIpW3gEpsApN-hMGbWA5NjscKa/view?usp=sharing)**
 · [vizagent_demo.mp4](vizagent_demo.mp4) (2:00, 1080p) · captions: [vizagent_demo.srt](vizagent_demo.srt)
 
@@ -15,6 +17,7 @@ work order and the W&B Weave traces.
   carry the story (`[curious]`, `[serious]`, `[sighs]`, `[excited]`, `[dramatically]`, `[reassuring]`,
   `[proudly]` ...). The takes are in [`hyperframes/voice_el/`](hyperframes/voice_el/).
 - **Screen and voice work together:** the screen shows one number or label, the voice tells the story.
+- **Preview:** `preview.gif` is a silent 16-second cut of six moments from the video, made with ffmpeg.
 - **Footage:** screenshots of the live app and one real 5-second clip from a San Francisco street camera.
   The clip is team footage, so it is not in git.
 
