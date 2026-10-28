@@ -20,6 +20,24 @@ transport agency reported severe-injury collisions up 8% in the first half of 20
 and the city's 2025 Street Safety Act now requires quarterly public safety dashboards
 ([GrowSF](https://growsf.org/news/2025-09-26-street-safety-act/)). The video already exists. Nobody has time to watch it.
 
+## Run it locally (no event credentials)
+
+Fixture mode serves a sample sweep and makes no network calls, so the page works on any laptop.
+You need Python 3.12 and none of the event's credentials:
+
+```sh
+git clone https://github.com/bhargavchintam/VizAgent.git && cd VizAgent
+python3.12 -m venv .venv && source .venv/bin/activate
+pip install -r requirements-dev.txt
+VIZ_MODE=fixture python app/main.py       # http://localhost:8080/
+pytest                                    # the test suite needs no network either
+```
+
+The server prints `Uvicorn running on http://0.0.0.0:8080`. Open http://localhost:8080/ and press **Run sweep**,
+then stop the server with Ctrl+C before you run `pytest`. Set `PORT` to use another port.
+
+Routes and JSON shapes are in [API.md](API.md).
+
 ## How it works
 
 ```
@@ -57,7 +75,11 @@ What it adds on top of plain video search:
 | App | Python 3.12, FastAPI, one plain HTML/JS page |
 | Agent Skill | `skills/vision-zero-sweep/SKILL.md`, so another agent can run a sweep and fetch work orders |
 
-## Run it, step by step
+## Run it on the event VM (needs the event's credentials)
+
+These steps only work on the event's workshop VM, with the team config the event provided: the VSS
+endpoint and login, the W&B keys and the GPU endpoint. Without them, use
+[Run it locally](#run-it-locally-no-event-credentials) above.
 
 Everything live runs on the workshop VM, where the team's endpoints and keys are already set.
 Nothing secret is stored in this repo.
@@ -130,18 +152,6 @@ feature's button when `/health` reports it on.
 | `VIZ_WATCH` | off | Check newly indexed clips and raise alerts. Each pass re-runs every search (they show on the event's live search board), so it is off for the demo; `VIZ_WATCH_SECONDS` (default 600) spaces the passes |
 | `VIZ_CONTEXT` | on | Show the clips just before and after a conflict |
 | `VIZ_REINGEST` | off | Re-ingest from the app. Off by default because it rewrites the shared index |
-
-## Develop without the VM
-
-Fixture mode serves a sample sweep and makes no network calls, so the page works on any laptop:
-
-```sh
-pip install -r requirements-dev.txt
-VIZ_MODE=fixture python app/main.py       # http://localhost:8080/
-pytest                                    # the test suite needs no network either
-```
-
-Routes and JSON shapes are in [API.md](API.md).
 
 ## Repo layout
 
